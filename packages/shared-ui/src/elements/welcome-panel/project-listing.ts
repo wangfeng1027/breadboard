@@ -69,6 +69,12 @@ export class ProjectListing extends LitElement {
   @property()
   accessor selectedLocation = "Browser Storage";
 
+  @property()
+  accessor hideListing = false;
+
+  @property()
+  accessor prefilledFlowDescription = '';
+
   @state()
   accessor filter: string | null = null;
 
@@ -1061,8 +1067,14 @@ export class ProjectListing extends LitElement {
             >
           </h1>
           <p id="cta">${Strings.from("LABEL_WELCOME_CTA")}</p>
-          <bb-describe-flow-panel></bb-describe-flow-panel>
+          <bb-describe-flow-panel
+          .prefilledValue=${this.prefilledFlowDescription}
+          ></bb-describe-flow-panel>
         </section>
+
+        ${this.hideListing
+          ? html``
+          : html `
 
         <div id="board-listing">
           <div id="locations">
@@ -1417,6 +1429,7 @@ export class ProjectListing extends LitElement {
           </div>
         </div>
       </div>
+      `}
 
       ${this.showBoardServerOverflowMenu
         ? html` <div

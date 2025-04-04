@@ -165,12 +165,19 @@ export class ExpandingTextarea extends LitElement {
   }
 
   #submit() {
+    console.log('submit');
     const value = this.#textarea?.value?.value;
+    console.log(value);
     if (value && !this.disabled) {
+      console.log('dispatch');
       this.dispatchEvent(new InputEvent("change"));
     } else {
       this.#shake();
     }
+  }
+
+  autoSubmit() {
+    this.#submit();
   }
 
   #recomputeHeight() {

@@ -465,6 +465,7 @@ export class Main extends LitElement {
     this.#settings = config.settings || null;
     this.#proxy = config.proxy || [];
     if (this.#settings) {
+      console.log(this.#settings);
       this.settingsHelper = new SettingsHelperImpl(this.#settings);
       this.tokenVendor = createTokenVendor(
         {
@@ -852,6 +853,16 @@ export class Main extends LitElement {
         );
 
         return this.#runtime.board.createTabsFromURL(currentUrl);
+      })
+      .then(() => {
+        console.log('enter block');
+        const queryString = window.location.search;
+        const urlParams = new URLSearchParams(queryString);
+        //Add a  hardcoded token here before starting local server
+        const bypassToken = urlParams.get('token') || '';
+        const instructions = urlParams.get('instructions');
+        console.log(instructions);
+        return this.signinAdapter.updateTokenFromUrl(bypassToken ?? '');
       })
       .then(() => {
         if (!config.boardServerUrl) {
@@ -2245,6 +2256,11 @@ export class Main extends LitElement {
   }
 
   render() {
+    const queryString = window.location.search;
+    const urlParams = new URLSearchParams(queryString);
+    const instructions = urlParams.get('instructions');
+    const iframe = urlParams.get('iframe');
+    const isInsideAgentspaceIframe = !!iframe;
     const signInAdapter = new BreadboardUI.Utils.SigninAdapter(
       this.tokenVendor,
       this.environment,
@@ -3199,6 +3215,8 @@ export class Main extends LitElement {
           }
         }
 
+        
+
         const ui = html`<header>
           <div id="header-bar" data-active=${this.tab ? "true" : nothing} ?inert=${showingOverlay}>
             <div id="tab-info">
@@ -4064,6 +4082,8 @@ export class Main extends LitElement {
                 .boardServers=${this.#boardServers}
                 .boardServerNavState=${this.boardServerNavState}
                 .showAdditionalSources=${showAdditionalSources}
+                .hideListing=${isInsideAgentspaceIframe}
+                .prefilledFlowDescription=${instructions}
                 @bbgraphboardserverblankboard=${() => {
                   this.#attemptBoardCreate(blank(), { role: "user" });
                 }}

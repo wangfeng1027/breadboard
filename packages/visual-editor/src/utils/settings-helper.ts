@@ -26,6 +26,7 @@ export class SettingsHelperImpl implements BreadboardUI.Types.SettingsHelper {
     name: string,
     value: BreadboardUI.Types.SettingEntry["value"]
   ): Promise<void> {
+    console.log(`set ${name} as ${value}`);
     const values = this.#store.values;
     values[section].items.set(name, value);
     await this.#store.save(values);

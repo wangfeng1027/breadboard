@@ -45,8 +45,10 @@ export class TokenVendorImpl {
       return { state: "signedout" };
     }
     const grant = JSON.parse(grantJsonString) as TokenGrant;
+    console.log('grantToken', grant);
     const needsClientIdRepair = grant.client_id === undefined;
     if (grantIsExpired(grant) || needsClientIdRepair) {
+      console.log('expired');
       return {
         state: "expired",
         grant,
@@ -62,6 +64,7 @@ export class TokenVendorImpl {
     expiredGrant: TokenGrant,
     signal?: AbortSignal
   ): Promise<ValidTokenResult> {
+    console.log(`#refresh the auth token for ${expiredGrant}`);
     if (expiredGrant.client_id === undefined) {
       // We used to not store the client_id locally, but later discovered it's
       // helpful to store because it's needed for some APIs.

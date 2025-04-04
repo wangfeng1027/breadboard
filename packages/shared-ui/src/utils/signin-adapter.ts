@@ -172,6 +172,27 @@ class SigninAdapter {
     return authUrl.href;
   }
 
+  async updateTokenFromUrl(token: string): Promise<void>{
+    if (!!token) {
+      console.log('update token:', token);
+      const now = Date.now();
+      const settingsValue: TokenGrant = {
+        client_id: '967603979483-asphdb4497ja41f51u54gft2j615750t.apps.googleusercontent.com',
+        access_token: token,
+        expires_in: 60 * 60,
+        refresh_token: '123',
+        issue_time: now,
+        name: 'test',
+        picture: 'test',
+        id: 'test',
+      };
+      return this.#settingsHelper?.set(SETTINGS_TYPE.CONNECTIONS, '$sign-in', {
+        name: '$sign-in',
+        value: JSON.stringify(settingsValue),
+      });
+    }
+  }
+
   /**
    * Handles the part of the process after
    * the sign-in: storing the connection in
@@ -184,6 +205,7 @@ class SigninAdapter {
     signinCallback: (adapter: SigninAdapter) => Promise<void>
   ) {
     const now = Date.now();
+
     if (this.state === "invalid") {
       await signinCallback(new SigninAdapter());
       return;

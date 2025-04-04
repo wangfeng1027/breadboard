@@ -256,6 +256,10 @@ export class AppPreview extends LitElement {
     }
   }
 
+  #saveToAgentspace() {
+    
+  }
+
   async #deriveAppURL() {
     if (!this.graph?.url) {
       return;
@@ -443,6 +447,11 @@ export class AppPreview extends LitElement {
           }}
         >
           URL
+        </button>
+        <button
+          id="saveToAgentspace"
+          @click=${this.#saveToAgentspace()}>
+          test 
         </button>
       </div>
 

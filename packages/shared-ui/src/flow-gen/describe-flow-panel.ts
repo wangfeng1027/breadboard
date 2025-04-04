@@ -5,7 +5,7 @@
  */
 
 import { LitElement, html, css } from "lit";
-import { customElement, state } from "lit/decorators.js";
+import { customElement, property, state } from "lit/decorators.js";
 import * as StringsHelper from "../strings/helper.js";
 import { outlineButtonWithIcon } from "../styles/outline-button-with-icon.js";
 import { createRef, ref } from "lit/directives/ref.js";
@@ -154,6 +154,9 @@ export class DescribeFlowPanel extends LitElement {
     `,
   ];
 
+  @property()
+  accessor prefilledValue = "";
+
   @consume({ context: sideBoardRuntime })
   accessor sideBoardRuntime!: SideBoardRuntime | undefined;
 
@@ -214,6 +217,20 @@ export class DescribeFlowPanel extends LitElement {
       default: {
         this.#state satisfies never;
       }
+    }
+  }
+
+  firstUpdated() {
+    if (!!this.prefilledValue) {
+      console.log('try!', this.prefilledValue);
+
+      const input = this.#descriptionInput?.value;
+      if (input) {
+        input.value = this.prefilledValue;
+        input.focus();
+        this.#onInputChange();
+      }
+
     }
   }
 
