@@ -1,5 +1,6 @@
 import { blank, type ReanimationState } from "@google-labs/breadboard";
 import type { BoardServerStore, ServerInfo, StorageBoard } from "../store.js";
+import { randomUUID } from "crypto";
 
 export const IN_MEMORY_SERVER_INFO: ServerInfo = {
   title: "In-memory board server",
@@ -9,10 +10,14 @@ export const IN_MEMORY_SERVER_INFO: ServerInfo = {
 
 export class InMemoryStorageProvider implements BoardServerStore {
   /** API key -> user ID */
+  // #users: Record<string, string> = {"bb-2g3o2c1pr1o2f5h6512524a18y5b4ss2io3b1mr433a3194d3j":"fengwan@google.com"};
   #users: Record<string, string> = {};
 
   /** board name -> boards */
   #boards: Record<string, StorageBoard> = {};
+
+  /** user + ticket -> reanimation states */
+  #states: Record<string, ReanimationState> = {};
 
   async getServerInfo(): Promise<ServerInfo | null> {
     return IN_MEMORY_SERVER_INFO;
@@ -26,6 +31,8 @@ export class InMemoryStorageProvider implements BoardServerStore {
   }
 
   async findUserIdByApiKey(apiKey: string): Promise<string> {
+    console.log(`Finding user for API key: ${apiKey}`);
+    console.log( `Current users: ${JSON.stringify(this.#users, null, 2)}`);
     return this.#users[apiKey] ?? "";
   }
 
@@ -42,7 +49,7 @@ export class InMemoryStorageProvider implements BoardServerStore {
   async createBoard(userId: string, name: string): Promise<void> {
     this.#boards[name] = {
       name,
-    owner: userId,
+      owner: userId,
       displayName: name,
       description: "",
       tags: [],
@@ -69,13 +76,17 @@ export class InMemoryStorageProvider implements BoardServerStore {
     _user: string,
     _ticket: string
   ): Promise<ReanimationState | undefined> {
-    throw Error("unimplemented");
+    const state = this.#states[_user + _ticket];
+    delete this.#states[_user + _ticket]; // Clean up the state after loading
+    return state;
   }
 
   saveReanimationState(
     _user: string,
     _state: ReanimationState
   ): Promise<string> {
-    throw Error("unimplemented");
+    let ticket = randomUUID();
+    this.#states[_user + ticket] = _state;
+    return Promise.resolve(ticket);
   }
 }
