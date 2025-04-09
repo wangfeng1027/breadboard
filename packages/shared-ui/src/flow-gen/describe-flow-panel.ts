@@ -158,6 +158,9 @@ export class DescribeFlowPanel extends LitElement {
   @property()
   accessor prefilledValue = "";
 
+  @property()
+  accessor prefilledName = "";
+
   @consume({ context: sideBoardRuntime })
   accessor sideBoardRuntime!: SideBoardRuntime | undefined;
 
@@ -271,6 +274,11 @@ export class DescribeFlowPanel extends LitElement {
       new AppCatalystApiClient(this.sideBoardRuntime)
     );
     const { flow } = await generator.oneShot({ intent });
+    console.log(flow);
+    console.log(this.prefilledName);
+    if (this.prefilledName && flow ) {
+      flow.title = this.prefilledName;
+    }
     return flow;
   }
 

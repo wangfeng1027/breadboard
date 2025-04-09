@@ -2249,6 +2249,7 @@ export class Main extends LitElement {
     const queryString = window.location.search;
     const urlParams = new URLSearchParams(queryString);
     const instructions = urlParams.get('instructions');
+    const flowName = urlParams.get('name');
     const iframe = urlParams.get('iframe');
     const isInsideAgentspaceIframe = !!iframe;
     const signInAdapter = new BreadboardUI.Utils.SigninAdapter(
@@ -4074,6 +4075,7 @@ export class Main extends LitElement {
                 .showAdditionalSources=${showAdditionalSources}
                 .hideListing=${isInsideAgentspaceIframe}
                 .prefilledFlowDescription=${instructions}
+                .prefilledFlowName=${flowName}
                 @bbgraphboardserverblankboard=${() => {
                   this.#attemptBoardCreate(blank(), { role: "user" });
                 }}
