@@ -1060,13 +1060,6 @@ export class ProjectListing extends LitElement {
 
     return html` <div id="wrapper" ${ref(this.#wrapperRef)}>
         <section id="hero">
-          <h1>
-            ${Strings.from("LABEL_WELCOME_MESSAGE_A")}
-            <span class="gradient"
-              >${Strings.from("LABEL_WELCOME_MESSAGE_B")}</span
-            >
-          </h1>
-          <p id="cta">${Strings.from("LABEL_WELCOME_CTA")}</p>
           <bb-describe-flow-panel
           .prefilledValue=${this.prefilledFlowDescription}
           ></bb-describe-flow-panel>
@@ -1486,7 +1479,6 @@ export class ProjectListing extends LitElement {
               : nothing}
           </div>`
         : nothing}
-
-      <div id="app-version">${this.version} (${this.gitCommitHash})</div>`;
+`;
   }
 }

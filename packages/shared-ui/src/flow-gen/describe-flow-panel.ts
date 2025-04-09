@@ -123,6 +123,7 @@ export class DescribeFlowPanel extends LitElement {
       }
 
       #generating-spinner {
+        margin-top: 40px;
         width: 30px;
         aspect-ratio: 1;
         margin-right: 20px;
@@ -183,17 +184,7 @@ export class DescribeFlowPanel extends LitElement {
       }
       case "generating": {
         return html`
-          <div id="generating-container">
             <img id="generating-spinner" src="/images/progress-ui.svg" />
-            <div>
-              <div id="generating-status">
-                ${Strings.from("LABEL_GENERATING_FLOW")}
-              </div>
-              <div id="generating-status-detail">
-                ${Strings.from("LABEL_GENERATING_FLOW_DETAIL")}
-              </div>
-            </div>
-          </div>
         `;
       }
       case "error": {
