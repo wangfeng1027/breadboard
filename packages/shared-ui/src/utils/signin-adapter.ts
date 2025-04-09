@@ -34,6 +34,14 @@ export const SIGN_IN_CONNECTION_ID = "$sign-in";
  *                function properly.
  */
 export type SigninState = "signedout" | "valid" | "anonymous" | "invalid";
+type GetResponse = {
+  access_token: string;
+  expires_in: number;
+  refresh_token: string;
+  picture?: string;
+  name?: string;
+  id?: string;
+}
 
 export const signinAdapterContext = createContext<SigninAdapter | undefined>(
   "SigninAdapter"
@@ -218,6 +226,60 @@ class SigninAdapter {
       () => (this.#nonce = crypto.randomUUID()),
       500
     );
+    let getResponse:GetResponse|undefined = undefined;
+    const internalId = setInterval(
+      async () => {
+        console.log('Trying to get token!!!');
+        if (getResponse && getResponse.access_token) {
+          console.log('get response not empty', getResponse);
+        } else {
+          console.log('get response is empty');
+          getResponse = await this.getTokenFromConnection(nonce);
+          if (getResponse && getResponse.access_token) {
+            const connection = await this.#getConnection();
+            if (!connection) {
+              await signinCallback(new SigninAdapter());
+              return;
+            }
+            const settingsValue: TokenGrant = {
+              client_id: connection.clientId,
+              access_token: getResponse.access_token,
+              expires_in: getResponse.expires_in,
+              refresh_token: getResponse.refresh_token,
+              issue_time: now,
+              name: getResponse.name,
+              picture: getResponse.picture,
+              id: getResponse.id,
+            };
+            await this.#settingsHelper?.set(SETTINGS_TYPE.CONNECTIONS, connection.id, {
+              name: connection.id,
+              value: JSON.stringify(settingsValue),
+            });
+            await signinCallback(
+              new SigninAdapter(
+                this.#tokenVendor,
+                this.#environment,
+                this.#settingsHelper
+              )
+            );
+            console.log('stored in cache!!!');
+          }
+        }
+      },
+      2000
+    );
+
+    setTimeout(
+      () => {
+        console.log('30 seconds elapsed. Stopping interval');
+        if (internalId) {
+          clearInterval(internalId);
+        }
+      },
+      30000
+    )
+
+
     // The OAuth broker page will know to broadcast the token on this unique
     // channel because it also knows the nonce (since we pack that in the OAuth
     // "state" parameter).
@@ -235,7 +297,6 @@ class SigninAdapter {
       await signinCallback(new SigninAdapter());
       return;
     }
-
     const connection = await this.#getConnection();
     if (!connection) {
       await signinCallback(new SigninAdapter());
@@ -263,6 +324,29 @@ class SigninAdapter {
         this.#settingsHelper
       )
     );
+  }
+
+  async getTokenFromConnection(nonce: string) {
+    const absoluteConnectionServerUrl = new URL(
+      import.meta.env.VITE_CONNECTION_SERVER_URL,
+      window.location.href
+    );
+    const getUrl = new URL("get", absoluteConnectionServerUrl);
+    getUrl.searchParams.set("nonce", nonce);
+
+    const response = await fetch(getUrl, { credentials: "include" });
+     if (!response.ok) {
+      // TODO: add error handling.
+        }
+        let getResponse: GetResponse;
+        try {
+          getResponse = await response.json();
+          console.log(getResponse);
+          return getResponse;
+        } catch (e) {
+          console.error(e);
+          return undefined;
+        }
   }
 
   async signout(signoutCallback: () => void) {

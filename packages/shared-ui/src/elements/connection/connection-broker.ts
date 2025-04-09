@@ -83,6 +83,7 @@ export class ConnectionBroker extends HTMLElement {
     const grantUrl = new URL("grant", absoluteConnectionServerUrl);
     grantUrl.searchParams.set("connection_id", connectionId);
     grantUrl.searchParams.set("code", code);
+    grantUrl.searchParams.set("nonce", nonce);
     grantUrl.searchParams.set(
       "redirect_path",
       new URL(window.location.href).pathname

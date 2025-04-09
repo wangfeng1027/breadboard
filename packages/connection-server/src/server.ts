@@ -9,6 +9,8 @@ import express, { type Express } from "express";
 import type { Request, Response } from "express";
 
 import { grant } from "./api/grant.js";
+import {SimpleCache} from "./cache.js";
+import { get } from "./api/get.js";
 import { list } from "./api/list.js";
 import { refresh } from "./api/refresh.js";
 import { loadConnections, type ServerConfig } from "./config.js";
@@ -39,6 +41,7 @@ export async function createServerConfig(): Promise<ServerConfig> {
 export function createServer(config: ServerConfig): Express {
   const server = express();
 
+  const cache = new SimpleCache();
   server.use(
     cors({
       credentials: true,
@@ -57,12 +60,15 @@ export function createServer(config: ServerConfig): Express {
   );
 
   server.get("/grant", async (req: Request, res: Response) =>
-    grant(req, res, config)
+    grant(req, res, config, cache)
   );
 
   server.get("/refresh", async (req: Request, res: Response) =>
     refresh(req, res, config)
   );
+
+  server.get("/get", async(req: Request, res: Response) =>
+   get(req, res, config, cache));
 
   return server;
 }

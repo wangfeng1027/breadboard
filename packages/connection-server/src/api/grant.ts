@@ -8,11 +8,13 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import type { ServerConfig } from "../config.js";
 import { badRequestJson, internalServerError, okJson } from "../responses.js";
 import { jwtDecode, type JwtPayload } from "jwt-decode";
+import type { SimpleCache } from "../cache.js";
 
 interface GrantRequest {
   connection_id: string;
   code: string;
   redirect_path: string;
+  nonce?: string;
 }
 
 // IMPORTANT: Keep in sync with
@@ -35,7 +37,8 @@ type GrantResponse =
 export async function grant(
   req: IncomingMessage,
   res: ServerResponse,
-  config: ServerConfig
+  config: ServerConfig,
+  cache: SimpleCache,
 ): Promise<void> {
   const params = Object.fromEntries(
     new URL(req.url ?? "", "http://example.com").searchParams.entries()
@@ -92,6 +95,17 @@ export async function grant(
     tokenResponse.expires_in >= 0
   ) {
     const { picture, name, id } = decodeIdToken(tokenResponse.id_token);
+    const nonce = params.nonce;
+    if (!!nonce) {
+      cache.set(nonce, {
+        access_token: tokenResponse.access_token,
+        expires_in: tokenResponse.expires_in,
+        refresh_token: tokenResponse.refresh_token,
+        picture,
+        name,
+        id,
+      })
+    }
     return okJson(res, {
       access_token: tokenResponse.access_token,
       expires_in: tokenResponse.expires_in,
