@@ -80,10 +80,6 @@ class SigninAdapter {
     this.#environment = environment;
     this.#settingsHelper = settingsHelper;
 
-    if (!environment.requiresSignin) {
-      this.state = "anonymous";
-      return;
-    }
     const token = tokenVendor.getToken(SIGN_IN_CONNECTION_ID);
     const { state } = token;
     if (state === "signedout") {
