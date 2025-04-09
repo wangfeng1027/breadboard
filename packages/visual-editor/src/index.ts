@@ -855,16 +855,6 @@ export class Main extends LitElement {
         return this.#runtime.board.createTabsFromURL(currentUrl);
       })
       .then(() => {
-        console.log('enter block');
-        const queryString = window.location.search;
-        const urlParams = new URLSearchParams(queryString);
-        //Add a  hardcoded token here before starting local server
-        const bypassToken = urlParams.get('token') || '';
-        const instructions = urlParams.get('instructions');
-        console.log(instructions);
-        return this.signinAdapter.updateTokenFromUrl(bypassToken ?? '');
-      })
-      .then(() => {
         if (!config.boardServerUrl) {
           return;
         }

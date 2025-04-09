@@ -12,9 +12,10 @@ export const styles = css`
   }
 
   :host {
+    --header-height: var(--bb-grid-size-11);
     flex: 1 0 auto;
     display: grid;
-    grid-template-rows: auto;
+    grid-template-rows: var(--header-height) auto;
   }
 
   bb-toast {
@@ -203,7 +204,7 @@ export const styles = css`
   header {
     background: var(--bb-neutral-0);
     border-bottom: 1px solid var(--bb-neutral-300);
-    display: none;
+    display: block;
     color: var(--bb-neutral-700);
     z-index: 1;
     width: 100%;
@@ -414,7 +415,7 @@ export const styles = css`
   }
 
   #content {
-    max-height: 100svh;
+    max-height: calc(100svh - var(--header-height));
     display: flex;
     flex-direction: column;
     position: relative;
