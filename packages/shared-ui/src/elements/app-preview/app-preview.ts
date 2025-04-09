@@ -448,11 +448,6 @@ export class AppPreview extends LitElement {
         >
           URL
         </button>
-        <button
-          id="saveToAgentspace"
-          @click=${this.#saveToAgentspace()}>
-          test 
-        </button>
       </div>
 
       <div
