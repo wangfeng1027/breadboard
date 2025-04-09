@@ -80,31 +80,25 @@ export class DescribeFlowPanel extends LitElement {
         color: inherit;
       }
 
-      #gradient-border-container {
-        flex: 1;
-        display: flex;
-        width: 100%;
-        background: linear-gradient(0deg, #fdf7f8, #f7f9fe);
-        border-radius: 100px;
-        padding: 10px;
-      }
-
       bb-expanding-textarea {
+        background: #fff;
         flex: 1;
         width: 100%;
-        background: #fff;
         color: var(--bb-neutral-900);
-        border: none;
-        border-radius: 100px;
-        padding: 0.5lh 1lh;
+        border-color: var(--bb-neutral-200);
         --submit-button-color: #3271ea;
-        --min-lines: 1;
-        --max-lines: 6;
+        --min-lines: 3;
+        --max-lines: 8;
         font:
           400 14px "Google Sans",
           sans-serif;
         line-height: 20px;
         caret-color: var(--bb-ui-500);
+
+        &:focus {
+          border-color: #3271ea;
+          box-shadow: 0px 4px 10.1px 0px rgba(0, 0, 0, 0.1);
+        }
 
         &::part(textarea)::placeholder {
           color: var(--bb-neutral-500);
@@ -123,6 +117,7 @@ export class DescribeFlowPanel extends LitElement {
       }
 
       #generating-spinner {
+        margin-top: 40px;
         width: 30px;
         aspect-ratio: 1;
         margin-right: 20px;
@@ -170,13 +165,13 @@ export class DescribeFlowPanel extends LitElement {
       case "initial": {
         return html`
           <div id="gradient-border-container">
-            <bb-expanding-textarea
-              ${ref(this.#descriptionInput)}
-              .placeholder=${Strings.from("LABEL_PLACEHOLDER_DESCRIPTION")}
+          <bb-expanding-textarea
+            ${ref(this.#descriptionInput)}
+            .placeholder=${Strings.from("LABEL_PLACEHOLDER_DESCRIPTION")}
               submitButtonIcon="pen_spark"
-              @change=${this.#onInputChange}
-            >
-            </bb-expanding-textarea>
+            @change=${this.#onInputChange}
+          >
+          </bb-expanding-textarea>
           </div>
           ${this.#renderTemplateChips()}
         `;
