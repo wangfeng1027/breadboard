@@ -2253,6 +2253,9 @@ export class Main extends LitElement {
     const iframe = urlParams.get('iframe');
     const flowGoal = urlParams.get('goal');
     const isInsideAgentspaceIframe = !!iframe;
+    if (isInsideAgentspaceIframe) {
+      this.style.setProperty('--header-height', '0');
+    }
     const signInAdapter = new BreadboardUI.Utils.SigninAdapter(
       this.tokenVendor,
       this.environment,
