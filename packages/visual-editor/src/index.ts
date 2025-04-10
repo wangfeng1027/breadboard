@@ -2251,6 +2251,7 @@ export class Main extends LitElement {
     const instructions = urlParams.get('instructions');
     const flowName = urlParams.get('name');
     const iframe = urlParams.get('iframe');
+    const flowGoal = urlParams.get('goal');
     const isInsideAgentspaceIframe = !!iframe;
     const signInAdapter = new BreadboardUI.Utils.SigninAdapter(
       this.tokenVendor,
@@ -4074,8 +4075,9 @@ export class Main extends LitElement {
                 .boardServerNavState=${this.boardServerNavState}
                 .showAdditionalSources=${showAdditionalSources}
                 .hideListing=${isInsideAgentspaceIframe}
-                .prefilledFlowDescription=${instructions}
+                .prefilledFlowIntent=${instructions}
                 .prefilledFlowName=${flowName}
+                .prefilledFlowDescription=${flowGoal}
                 @bbgraphboardserverblankboard=${() => {
                   this.#attemptBoardCreate(blank(), { role: "user" });
                 }}

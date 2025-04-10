@@ -73,10 +73,13 @@ export class ProjectListing extends LitElement {
   accessor hideListing = false;
 
   @property()
-  accessor prefilledFlowDescription = '';
+  accessor prefilledFlowIntent = '';
 
   @property()
   accessor prefilledFlowName = '';
+
+  @property()
+  accessor prefilledFlowDescription = '';
 
   @state()
   accessor filter: string | null = null;
@@ -1064,8 +1067,9 @@ export class ProjectListing extends LitElement {
     return html` <div id="wrapper" ${ref(this.#wrapperRef)}>
         <section id="hero">
           <bb-describe-flow-panel
-          .prefilledValue=${this.prefilledFlowDescription}
+          .prefilledValue=${this.prefilledFlowIntent}
           .prefilledName=${this.prefilledFlowName}
+          .prefilledDescription=${this.prefilledFlowDescription}
           ></bb-describe-flow-panel>
         </section>
 
