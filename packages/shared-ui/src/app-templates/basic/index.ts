@@ -260,21 +260,21 @@ export class Template extends LitElement implements AppTemplate {
             flex: 1;
             animation: fadeIn 1s cubic-bezier(0, 0, 0.3, 1);
 
-            &::before {
-              content: "";
-              width: 100%;
-              flex: 1;
-              background: var(--splash-image, url(/images/app/generic-flow.jpg))
-                center center / cover no-repeat;
-              mask-image: linear-gradient(
-                to bottom,
-                rgba(255, 0, 255, 1) 0%,
-                rgba(255, 0, 255, 1) 70%,
-                rgba(255, 0, 255, 0.75) 80%,
-                rgba(255, 0, 255, 0.4) 90%,
-                rgba(255, 0, 255, 0) 100%
-              );
-            }
+            // &::before {
+            //   content: "";
+            //   width: 100%;
+            //   flex: 1;
+            //   background: var(--splash-image, url(/images/app/generic-flow.jpg))
+            //     center center / cover no-repeat;
+            //   mask-image: linear-gradient(
+            //     to bottom,
+            //     rgba(255, 0, 255, 1) 0%,
+            //     rgba(255, 0, 255, 1) 70%,
+            //     rgba(255, 0, 255, 0.75) 80%,
+            //     rgba(255, 0, 255, 0.4) 90%,
+            //     rgba(255, 0, 255, 0) 100%
+            //   );
+            // }
 
             & h1 {
               background: var(--background-color, none);
