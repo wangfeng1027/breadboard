@@ -23,6 +23,7 @@ import {
   llm,
   extractInlineData,
   extractTextData,
+  mergeContent,
 } from "./utils";
 import { callImageGen, callImageEdit, promptExpander } from "./image-utils";
 import { Template } from "./template";
@@ -33,11 +34,13 @@ import { ArgumentNameGenerator } from "./introducer";
 import { ListExpander } from "./lists";
 
 const MAKE_IMAGE_ICON = "generative-image";
+const ASPECT_RATIOS = ["1:1", "9:16", "16:9", "4:3", "3:4"];
 
 type ImageGeneratorInputs = {
   context: LLMContent[];
   instruction: LLMContent;
   "p-disable-prompt-rewrite": boolean;
+  "p-aspect-ratio": string;
 } & Params;
 
 type ImageGeneratorOutputs = {
@@ -95,26 +98,27 @@ async function invoke({
   context: incomingContext,
   instruction,
   "p-disable-prompt-rewrite": disablePromptRewrite,
+  "p-aspect-ratio": aspectRatio,
   ...params
 }: ImageGeneratorInputs): Promise<Outcome<ImageGeneratorOutputs>> {
   incomingContext ??= [];
   if (!instruction) {
     instruction = toLLMContent("");
   }
-  console.log(instruction);
-  console.log(incomingContext);
+  if (!aspectRatio) {
+    aspectRatio = "1:1";
+  }
   let imageContext = extractInlineData(incomingContext);
   const textContext = extractTextData(incomingContext);
   // Substitute params in instruction.
   const toolManager = new ToolManager(new ArgumentNameGenerator());
   const substituting = await new Template(instruction).substitute(
     params,
-    async ({ path: url }) => toolManager.addTool(url)
+    async ({ path: url, instance }) => toolManager.addTool(url, instance)
   );
   if (!ok(substituting)) {
     return substituting;
   }
-  console.log(substituting);
 
   const fanningOut = await new ListExpander(substituting, incomingContext).map(
     async (instruction, context) => {
@@ -132,7 +136,7 @@ async function invoke({
 
       const refImages = extractInlineData([instruction]);
       const refText = instruction
-        ? extractTextData([instruction])[0]
+        ? toLLMContent(toTextConcat(extractTextData([instruction])))
         : toLLMContent("");
       imageContext = imageContext.concat(refImages);
 
@@ -142,11 +146,6 @@ async function invoke({
         // Image editing case.
         if (imageContext.length > 0) {
           console.log("Step has reference image, using editing API");
-          if (imageContext.length != 1) {
-            console.log(
-              "Image editing API got multiple images, using only the last"
-            );
-          }
           const instructionText = refText ? toText(refText) : "";
           const combinedInstruction = toTextConcat(
             joinContent(instructionText, textContext, false)
@@ -156,13 +155,16 @@ async function invoke({
               "Error: an image editing instruction must be provided along side the reference image."
             );
           }
-          console.log("PROMPT: " + combinedInstruction);
+          const finalInstruction =
+            combinedInstruction + "\nAspect ratio: " + aspectRatio;
+          console.log("PROMPT: " + finalInstruction);
           const generatedImage = await callImageEdit(
-            combinedInstruction,
-            imageContext[0],
-            disablePromptRewrite
+            finalInstruction,
+            imageContext,
+            disablePromptRewrite,
+            aspectRatio
           );
-          return generatedImage;
+          return mergeContent(generatedImage, "model");
         } else {
           console.log("Step as text only, using generation API");
           let imagePrompt: LLMContent;
@@ -176,9 +178,10 @@ async function invoke({
             if (!ok(generatingPrompt)) return generatingPrompt;
             imagePrompt = generatingPrompt.last;
           }
-          console.log("PROMPT", toText(imagePrompt).trim());
-          const generatedImage = await callImageGen(toText(imagePrompt).trim());
-          return generatedImage;
+          const iPrompt = toText(imagePrompt).trim();
+          console.log("PROMPT", iPrompt);
+          const generatedImage = await callImageGen(iPrompt, aspectRatio);
+          return mergeContent(generatedImage, "model");
         }
       }
       return gracefulExit(
@@ -223,6 +226,14 @@ async function describe({ inputs: { instruction } }: DescribeInputs) {
           behavior: ["config"],
           description:
             "By default, inputs and instructions will be automatically expanded into a high quality image prompt. Check to disable this re-writing behavior.",
+        },
+        "p-aspect-ratio": {
+          type: "string",
+          behavior: ["hint-text", "config"],
+          title: "Aspect Ratio",
+          enum: ASPECT_RATIOS,
+          description: "The aspect ratio of the generated image",
+          default: "1:1",
         },
         ...template.schemas(),
       },

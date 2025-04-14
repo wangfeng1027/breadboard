@@ -24,13 +24,13 @@ import {
   createEphemeralBlobStore,
   createFileSystem,
   createGraphStore,
-  DataStore,
   GraphStoreArgs,
   MutableGraphStore,
   FileSystem,
   Outcome,
   err,
   NodeDescriberResult,
+  envFromGraphDescriptor,
 } from "@google-labs/breadboard";
 import {
   createFileSystemBackend,
@@ -80,7 +80,7 @@ class SideboardRuntimeImpl
   implements SideBoardRuntime
 {
   #graphStore: MutableGraphStore;
-  #dataStore: DataStore;
+  #dataStore: BoardServerAwareDataStore;
   #secretsHelper: SecretsHelper | undefined;
   #fileSystem: FileSystem;
   #runningTaskCount = 0;
@@ -94,7 +94,11 @@ class SideboardRuntimeImpl
     private readonly proxy?: HarnessProxyConfig[]
   ) {
     super();
-    this.#dataStore = new BoardServerAwareDataStore(getDataStore(), servers);
+    this.#dataStore = new BoardServerAwareDataStore(
+      getDataStore(),
+      servers,
+      undefined
+    );
     this.#fileSystem = createFileSystem({
       local: createFileSystemBackend(createEphemeralBlobStore()),
     });
@@ -194,11 +198,11 @@ class SideboardRuntimeImpl
       diagnostics: true,
       kits: [...this.#graphStore.kits],
       loader: this.#graphStore.loader,
-      store: this.#dataStore,
+      store: this.#dataStore.createRunDataStore(url),
       graphStore: this.#graphStore,
       fileSystem: this.#fileSystem.createRunFileSystem({
         graphUrl: url,
-        env: [],
+        env: envFromGraphDescriptor(graph),
         assets: assetsFromGraphDescriptor(graph),
       }),
       interactiveSecrets: true,

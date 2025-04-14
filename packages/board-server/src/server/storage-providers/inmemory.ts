@@ -49,7 +49,7 @@ export class InMemoryStorageProvider implements BoardServerStore {
   async createBoard(userId: string, name: string): Promise<void> {
     this.#boards[name] = {
       name,
-      owner: userId,
+    owner: userId,
       displayName: name,
       description: "",
       tags: [],

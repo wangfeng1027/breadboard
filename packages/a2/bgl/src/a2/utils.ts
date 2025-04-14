@@ -7,6 +7,7 @@ export {
   toLLMContent,
   toInlineData,
   toLLMContentInline,
+  toLLMContentStored,
   toText,
   joinContent,
   contentToJSON,
@@ -253,6 +254,24 @@ function toLLMContentInline(
   };
 }
 
+function toLLMContentStored(
+  mimetype: string,
+  handle: string,
+  role: LLMContent["role"] = "user"
+) {
+  return {
+    parts: [
+      {
+        storedData: {
+          mimeType: mimetype,
+          handle: handle,
+        },
+      },
+    ],
+    role,
+  };
+}
+
 function toInlineData(c: LLMContent | LLMContent[]) {
   if (isLLMContent(c)) {
     return contentToInlineData(c);
@@ -266,6 +285,19 @@ function toInlineData(c: LLMContent | LLMContent[]) {
     if (!part) return "";
     return "inlineData" in part && part.inlineData ? part.inlineData : null;
   }
+}
+
+export function mergeContent(content: LLMContent[], role: string): LLMContent {
+  const parts: DataPart[] = [];
+  for (const el of content) {
+    for (const part of el.parts) {
+      parts.push(part);
+    }
+  }
+  return {
+    parts: parts,
+    role: role,
+  } satisfies LLMContent;
 }
 
 function generateId() {

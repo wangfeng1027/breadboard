@@ -94,7 +94,9 @@ async function invoke({
   const toolManager = new ToolManager(new ArgumentNameGenerator());
   const substituting = await new Template(
     toLLMContent(instructionText)
-  ).substitute(params, async ({ path: url }) => toolManager.addTool(url));
+  ).substitute(params, async ({ path: url, instance }) =>
+    toolManager.addTool(url, instance)
+  );
   if (!ok(substituting)) {
     return substituting;
   }
@@ -125,14 +127,10 @@ async function invoke({
       while (retryCount--) {
         const generatedImage = await callImageEdit(
           combinedInstruction,
-          imageContext[0],
+          imageContext,
           disablePromptRewrite
         );
-        if (!ok(generatedImage)) {
-          return generatedImage;
-        }
-
-        return generatedImage;
+        return generatedImage[0];
       }
 
       return gracefulExit(
@@ -194,7 +192,7 @@ async function describe({ inputs: { instruction } }: DescribeInputs) {
         },
       },
     } satisfies Schema,
-    title: "Edit Image",
+    title: "Edit Image [Deprecated, Use Make Image]",
     metadata: {
       icon: MAKE_IMAGE_ICON,
       tags: ["quick-access", "generative", "experimental"],

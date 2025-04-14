@@ -11,7 +11,7 @@ import { FastAccessSelectEvent } from "../../../events/events";
 import { Project } from "../../../state";
 import { FastAccessMenu } from "../../elements";
 import { escapeHTMLEntities } from "../../../utils";
-
+import { styles as ChicletStyles } from "../../../styles/chiclet.js";
 import { getAssetType } from "../../../utils/mime-type";
 
 @customElement("bb-text-editor")
@@ -45,151 +45,79 @@ export class TextEditor extends LitElement {
   @property()
   accessor projectState: Project | null = null;
 
-  static styles = css`
-    * {
-      box-sizing: border-box;
-    }
-
-    :host {
-      display: block;
-      background: var(--bb-neutral-0);
-      font: normal var(--bb-body-medium) / var(--bb-body-line-height-medium)
-        var(--bb-font-family);
-      color: var(--bb-neutral-900);
-      line-height: var(--bb-grid-size-6);
-      position: relative;
-    }
-
-    #editor {
-      outline: none;
-      display: block;
-      white-space: pre-line;
-      height: var(--text-editor-height, auto);
-      width: 100%;
-      line-height: var(--bb-grid-size-6);
-      overflow-y: scroll;
-      padding: var(--bb-grid-size-2);
-    }
-
-    .chiclet {
-      cursor: pointer;
-      display: inline-flex;
-      padding: 0 var(--bb-grid-size-2) 0 var(--bb-grid-size-6);
-      background: var(--bb-neutral-50);
-      outline: 1px solid var(--bb-neutral-100);
-      color: var(--bb-neutral-700);
-      border-radius: var(--bb-grid-size-16);
-      border: none;
-      height: var(--bb-grid-size-5);
-      caret-color: transparent;
-      align-items: center;
-      justify-content: center;
-      vertical-align: middle;
-      user-select: none;
-      white-space: nowrap;
-      font: normal var(--bb-body-small) / var(--bb-body-line-height-small)
-        var(--bb-font-family);
-
-      & * {
-        caret-color: transparent;
-        &::selection {
-          background: none;
-        }
+  static styles = [
+    ChicletStyles,
+    css`
+      * {
+        box-sizing: border-box;
       }
 
-      & span {
-        display: none;
-
-        &.visible {
-          display: inline;
-          pointer-events: none;
-        }
-      }
-
-      &.in {
-        background: var(--bb-input-50) var(--bb-icon-output) 5px center / 16px
-          16px no-repeat;
-        outline: 1px solid var(--bb-input-100);
-        color: var(--bb-input-700);
-      }
-
-      &.asset {
-        background: var(--bb-asset-50) var(--bb-icon-text) 5px center / 16px
-          16px no-repeat;
-        outline: 1px solid var(--bb-asset-100);
-        color: var(--bb-asset-700);
-      }
-
-      &.audio {
-        background-image: var(--bb-icon-sound);
-      }
-
-      &.video {
-        background-image: var(--bb-icon-add-video);
-      }
-
-      &.text {
-        background-image: var(--bb-icon-text);
-      }
-
-      &.image {
-        background-image: var(--bb-icon-add-image);
-      }
-
-      &.tool {
-        background: var(--bb-tool-50) var(--bb-icon-home-repair-service) 5px
-          center / 16px 16px no-repeat;
-        outline: 1px solid var(--bb-tool-100);
-        color: var(--bb-tool-700);
-      }
-
-      &.param {
-        background: var(--bb-param-50) var(--bb-icon-contact-support) 5px
-          center / 16px 16px no-repeat;
-        outline: 1px solid var(--bb-param-100);
-        color: var(--bb-param-700);
-      }
-
-      &.selected {
-        background-color: var(--bb-ui-500);
-        outline: 1px solid var(--bb-ui-700);
-        color: var(--bb-neutral-0);
-      }
-
-      &.invalid {
-        background-color: var(--bb-warning-100);
-        outline: 1px solid var(--bb-warning-200);
-        color: var(--bb-warning-700);
-      }
-    }
-
-    bb-fast-access-menu {
-      display: none;
-      position: absolute;
-      z-index: 10;
-
-      &.active {
+      :host {
         display: block;
-        left: var(--fast-access-x, 10);
-        top: var(--fast-access-y, 10);
+        background: var(--bb-neutral-0);
+        font: normal var(--bb-body-medium) / var(--bb-body-line-height-medium)
+          var(--bb-font-family);
+        color: var(--bb-neutral-900);
+        line-height: var(--bb-grid-size-6);
+        position: relative;
       }
-    }
 
-    #proxy {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 0;
-      background: red;
-    }
-  `;
+      #editor {
+        outline: none;
+        display: block;
+        white-space: pre-line;
+        height: var(--text-editor-height, auto);
+        width: 100%;
+        min-height: 100%;
+        line-height: var(--bb-grid-size-6);
+        overflow-y: scroll;
+        overflow-x: hidden;
+        padding: var(--text-editor-padding-top, var(--bb-grid-size-2))
+          var(--text-editor-padding-right, var(--bb-grid-size-2))
+          var(--text-editor-padding-bottom, var(--bb-grid-size-2))
+          var(--text-editor-padding-left, var(--bb-grid-size-2));
+
+        &.placeholder::before {
+          content: "Enter text";
+          font: normal var(--bb-body-medium) / var(--bb-body-line-height-medium)
+            var(--bb-font-family);
+          color: var(--bb-neutral-600);
+          line-height: var(--bb-grid-size-6);
+
+          position: absolute;
+          top: var(--text-editor-padding-top, var(--bb-grid-size-2));
+          left: var(--text-editor-padding-left, var(--bb-grid-size-2));
+        }
+      }
+
+      bb-fast-access-menu {
+        display: none;
+        position: absolute;
+        z-index: 10;
+
+        &.active {
+          display: block;
+          left: var(--fast-access-x, 10);
+          top: var(--fast-access-y, 10);
+        }
+      }
+
+      #proxy {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 0;
+        background: red;
+      }
+    `,
+  ];
 
   #value = "";
   #renderableValue = "";
   #isUsingFastAccess = false;
   #lastRange: Range | null = null;
-  #editorRef: Ref<HTMLDivElement> = createRef();
+  #editorRef: Ref<HTMLSpanElement> = createRef();
   #proxyRef: Ref<HTMLDivElement> = createRef();
   #fastAccessRef: Ref<FastAccessMenu> = createRef();
 
@@ -266,7 +194,11 @@ export class TextEditor extends LitElement {
     this.#checkSelectionsBound(evt);
   }
 
-  #restoreLastRange() {
+  storeLastRange() {
+    this.#lastRange = this.#getCurrentRange();
+  }
+
+  restoreLastRange(offsetLastChar = true) {
     if (!this.#lastRange) {
       return;
     }
@@ -278,7 +210,7 @@ export class TextEditor extends LitElement {
     }
 
     // Expand the range to include the @ symbol.
-    if (this.#lastRange.startOffset > 0) {
+    if (this.#lastRange.startOffset > 0 && offsetLastChar) {
       this.#lastRange.setStart(
         this.#lastRange.startContainer,
         this.#lastRange.startOffset - 1
@@ -289,18 +221,19 @@ export class TextEditor extends LitElement {
     selection.addRange(this.#lastRange);
   }
 
-  #add(
+  addItem(
     path: string,
     title: string,
     templatePartType: TemplatePartType,
-    mimeType?: string
+    mimeType?: string,
+    instance?: string
   ) {
     if (!this.#editorRef.value) {
       return null;
     }
 
     if (!this.#getCurrentRange()) {
-      this.#restoreLastRange();
+      this.restoreLastRange();
     }
 
     requestAnimationFrame(() => {
@@ -325,6 +258,7 @@ export class TextEditor extends LitElement {
         path,
         type: templatePartType,
         mimeType,
+        instance,
       });
       postamableText.textContent = Template.postamble();
       titleText.textContent = title;
@@ -595,6 +529,17 @@ export class TextEditor extends LitElement {
     this.dispatchEvent(new InputEvent("input"));
   }
 
+  #togglePlaceholder(forcedValue?: boolean) {
+    if (!this.#editorRef.value) {
+      return;
+    }
+
+    this.#editorRef.value.classList.toggle(
+      "placeholder",
+      forcedValue !== undefined ? forcedValue : this.#value === ""
+    );
+  }
+
   #sanitizePastedContent(evt: ClipboardEvent) {
     evt.preventDefault();
 
@@ -695,6 +640,17 @@ export class TextEditor extends LitElement {
     }
 
     this.#editorRef.value.focus({ preventScroll: true });
+
+    const selection = this.#getCurrentSelection();
+    if (!selection || !this.#editorRef.value.lastChild) {
+      return;
+    }
+
+    const range = new Range();
+    range.selectNode(this.#editorRef.value.lastChild);
+    range.collapse(false);
+    selection.removeAllRanges();
+    selection.addRange(range);
   }
 
   #showFastAccess(bounds: DOMRect | undefined) {
@@ -755,6 +711,7 @@ export class TextEditor extends LitElement {
 
     this.#editorRef.value.innerHTML = this.#renderableValue;
     this.#ensureAllChicletsHaveSpace();
+    this.#togglePlaceholder();
 
     if (this.#focusOnFirstRender) {
       this.focus();
@@ -771,7 +728,7 @@ export class TextEditor extends LitElement {
           const isMac = navigator.platform.indexOf("Mac") === 0;
           const isCtrlCommand = isMac ? evt.metaKey : evt.ctrlKey;
 
-          if (evt.key === "c" && isCtrlCommand) {
+          if ((evt.key === "c" || evt.key === "x") && isCtrlCommand) {
             evt.preventDefault();
 
             const range = this.#getCurrentRange();
@@ -779,10 +736,18 @@ export class TextEditor extends LitElement {
               navigator.clipboard.writeText(
                 range.toString().replace(/\uFEFF/gim, "")
               );
+
+              if (evt.key === "x") {
+                range.deleteContents();
+              }
             }
+
             return;
           }
 
+          if (/\W/.test(evt.key)) {
+            this.#togglePlaceholder(false);
+          }
           this.#ensureSafeRangePosition(evt);
         }}
         @keyup=${(evt: KeyboardEvent) => {
@@ -792,14 +757,16 @@ export class TextEditor extends LitElement {
           }
 
           if (this.projectState && this.supportsFastAccess && evt.key === "@") {
-            this.#lastRange = this.#getCurrentRange();
+            this.storeLastRange();
             const bounds = this.#lastRange?.getBoundingClientRect();
             this.#showFastAccess(bounds);
           }
+          this.#togglePlaceholder();
         }}
         @input=${() => {
           this.#ensureAllChicletsHaveSpace();
           this.#captureEditorValue();
+          this.#togglePlaceholder();
         }}
         id="editor"
         contenteditable="true"
@@ -812,12 +779,18 @@ export class TextEditor extends LitElement {
         @bbfastaccessdismissed=${() => {
           this.#hideFastAccess();
           this.#captureEditorValue();
-          this.#restoreLastRange();
+          this.restoreLastRange();
         }}
         @bbfastaccessselect=${(evt: FastAccessSelectEvent) => {
           this.#hideFastAccess();
-          this.#restoreLastRange();
-          this.#add(evt.path, evt.title, evt.accessType, evt.mimeType);
+          this.restoreLastRange();
+          this.addItem(
+            evt.path,
+            evt.title,
+            evt.accessType,
+            evt.mimeType,
+            evt.instance
+          );
 
           this.#captureEditorValue();
         }}

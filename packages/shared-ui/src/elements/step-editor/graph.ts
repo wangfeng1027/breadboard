@@ -41,6 +41,7 @@ import { toGridSize } from "./utils/to-grid-size";
 import { MOVE_GRAPH_ID } from "./constants";
 import { GraphAsset } from "./graph-asset";
 import { AssetPath } from "@breadboard-ai/types";
+import { isControllerBehavior } from "../../utils/behaviors";
 
 @customElement("bb-graph")
 export class Graph extends Box {
@@ -145,6 +146,32 @@ export class Graph extends Box {
         graphNode.updating = ports.updating ?? false;
         graphNode.icon = metadata.icon ?? null;
         graphNode.ports = ports;
+        for (const port of ports.inputs.ports) {
+          if (isControllerBehavior(port.schema) && port.schema.enum) {
+            const selectedControllerType = port.schema.enum.find((v) => {
+              if (typeof v === "string") {
+                return false;
+              }
+
+              return v.id === port.value;
+            });
+
+            if (
+              !selectedControllerType ||
+              typeof selectedControllerType === "string"
+            ) {
+              continue;
+            }
+
+            if (!selectedControllerType.icon) {
+              continue;
+            }
+
+            graphNode.icon = selectedControllerType.icon;
+            break;
+          }
+        }
+
         if (metadata.tags) {
           for (const tag of metadata.tags ?? []) {
             graphNode.classList.add(tag);
@@ -360,6 +387,18 @@ export class Graph extends Box {
         graphEdge.selected;
     }
 
+    if (Array.isArray(this.#assetEdges)) {
+      for (const assetEdge of this.#assetEdges) {
+        const id = inspectableAssetEdgeToString(assetEdge);
+        const graphAssetEdge = this.entities.get(id) as GraphEdge;
+        if (!graphAssetEdge) {
+          continue;
+        }
+
+        graphAssetEdge.selected = selectionState?.assetEdges.has(id) ?? false;
+      }
+    }
+
     for (const assetPath of this.#assets.keys()) {
       const graphAsset = this.entities.get(assetPath) as GraphAsset;
       if (!graphAsset) {
@@ -402,6 +441,20 @@ export class Graph extends Box {
 
       if (graphAsset.selected) {
         selectionState.assets.add(assetPath);
+      }
+    }
+
+    if (Array.isArray(this.#assetEdges)) {
+      for (const assetEdge of this.#assetEdges) {
+        const id = inspectableAssetEdgeToString(assetEdge);
+        const graphAssetEdge = this.entities.get(id) as GraphEdge;
+        if (!graphAssetEdge) {
+          continue;
+        }
+
+        if (graphAssetEdge.selected) {
+          selectionState.assetEdges.add(id);
+        }
       }
     }
 
@@ -549,18 +602,29 @@ export class Graph extends Box {
   }
 
   expandSelections() {
-    for (const graphNode of this.entities.values()) {
-      if (graphNode instanceof GraphNode) {
-        if (graphNode.selected) {
+    for (const entity of this.entities.values()) {
+      if (entity instanceof GraphAsset) {
+        if (entity.selected && Array.isArray(this.#assetEdges)) {
+          const assetEdges = this.#assetEdges.filter(
+            (edge) => edge.assetPath === entity.assetPath
+          );
+
+          // TODO: Enable default add for Assets.
+          entity.showDefaultAdd = false && assetEdges.length === 0;
+        }
+      }
+
+      if (entity instanceof GraphNode) {
+        if (entity.selected) {
           const nodeEdges = this.#edges.filter(
             (edge) =>
-              edge.from.descriptor.id === graphNode.nodeId ||
-              edge.to.descriptor.id === graphNode.nodeId
+              edge.from.descriptor.id === entity.nodeId ||
+              edge.to.descriptor.id === entity.nodeId
           );
 
           let isConnectedOut = false;
           for (const edge of nodeEdges) {
-            if (edge.from.descriptor.id === graphNode.nodeId) {
+            if (edge.from.descriptor.id === entity.nodeId) {
               isConnectedOut = true;
             }
             const graphEdge = this.entities.get(inspectableEdgeToString(edge));
@@ -571,9 +635,9 @@ export class Graph extends Box {
             graphEdge.selected = true;
           }
 
-          graphNode.showDefaultAdd = !isConnectedOut;
+          entity.showDefaultAdd = !isConnectedOut;
         } else {
-          graphNode.showDefaultAdd = false;
+          entity.showDefaultAdd = false;
         }
       }
     }

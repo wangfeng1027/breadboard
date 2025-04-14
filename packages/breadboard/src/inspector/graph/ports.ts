@@ -74,11 +74,13 @@ const BEHAVIOR_AFFECTS_TYPE_CHECKING: { [K in BehaviorSchema]: boolean } = {
   "hint-code": false,
   "hint-multimodal": false,
   "hint-preview": false,
+  "hint-controller": false,
   "hint-single-line": false,
   module: true,
   side: false,
   "main-port": false,
   "at-wireable": false,
+  reactive: false,
 };
 
 export const collectPorts = (

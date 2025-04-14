@@ -50,6 +50,8 @@ const documentStyles = getComputedStyle(document.documentElement);
 
 type ValidColorStrings = `#${string}` | `--${string}`;
 
+const USER_REGEX = /\/@[^/]+\//;
+
 const LOCAL_REVISION_HISTORY_KEY = "revision-history";
 const LOCAL_REVISION_HISTORY_VERSION = 1;
 interface LocalRevisionHistoryDBSchema extends idb.DBSchema {
@@ -150,7 +152,10 @@ export class Board extends EventTarget {
       // the user is notified.
       return { success: false };
     } else {
-      this.boardServers.servers = await getBoardServers(this.tokenVendor);
+      this.boardServers.servers = [
+        ...(await getBoardServers(this.tokenVendor)),
+        ...this.boardServers.builtInBoardServers,
+      ];
       this.boardServers.loader = createLoader(this.boardServers.servers);
       this.dispatchEvent(
         new RuntimeBoardServerChangeEvent(
@@ -176,7 +181,10 @@ export class Board extends EventTarget {
       // the user is notified.
       return { success: false };
     }
-    this.boardServers.servers = await getBoardServers(this.tokenVendor);
+    this.boardServers.servers = [
+      ...(await getBoardServers(this.tokenVendor)),
+      ...this.boardServers.builtInBoardServers,
+    ];
     this.boardServers.loader = createLoader(this.boardServers.servers);
     this.dispatchEvent(new RuntimeBoardServerChangeEvent());
   }
@@ -913,7 +921,7 @@ export class Board extends EventTarget {
 
     for (const store of boardServer.items().values()) {
       for (const item of store.items.values()) {
-        if (item.url !== tab.graph.url) {
+        if (item.url !== tab.graph.url && item.url.replace(USER_REGEX, "/") !== tab.graph.url) {
           continue;
         }
 

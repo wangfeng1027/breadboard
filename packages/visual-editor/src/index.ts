@@ -36,6 +36,7 @@ import {
   isInlineData,
   isStoredData,
   EditHistoryCreator,
+  envFromGraphDescriptor,
 } from "@google-labs/breadboard";
 import {
   createFileSystemBackend,
@@ -90,6 +91,7 @@ import { sideBoardRuntime } from "@breadboard-ai/shared-ui/contexts/side-board-r
 import { SideBoardRuntime } from "@breadboard-ai/shared-ui/sideboards/types.js";
 import { OverflowAction } from "@breadboard-ai/shared-ui/types/types.js";
 import { MAIN_BOARD_ID } from "@breadboard-ai/shared-ui/constants/constants.js";
+import { createA2Server } from "@breadboard-ai/a2";
 
 const STORAGE_PREFIX = "bb-main";
 const LOADING_TIMEOUT = 250;
@@ -551,6 +553,7 @@ export class Main extends LitElement {
           settings: this.#settings!,
           proxy: this.#proxy,
           fileSystem: this.#fileSystem,
+          builtInBoardServers: [createA2Server()],
         });
       })
       .then((runtime) => {
@@ -966,8 +969,8 @@ export class Main extends LitElement {
 
     // Add a little clearance onto the value.
     this.#tooltipRef.value.x = Math.min(
-      Math.max(tooltipEvent.x, 80),
-      window.innerWidth - 80
+      Math.max(tooltipEvent.x, 120),
+      window.innerWidth - 120
     );
     this.#tooltipRef.value.y = Math.max(tooltipEvent.y, 90);
     this.#tooltipRef.value.message = tooltipEvent.message;
@@ -1188,11 +1191,7 @@ export class Main extends LitElement {
     if (evt.key === "z" && isCtrlCommand) {
       const isFocusedOnRenderer = evt
         .composedPath()
-        .find(
-          (target) =>
-            target instanceof BreadboardUI.Elements.GraphRenderer ||
-            target instanceof BreadboardUI.Elements.Renderer
-        );
+        .find((target) => target instanceof BreadboardUI.Elements.Renderer);
 
       if (!isFocusedOnRenderer) {
         return;
@@ -1335,7 +1334,7 @@ export class Main extends LitElement {
           graphStore: this.#graphStore,
           fileSystem: this.#fileSystem.createRunFileSystem({
             graphUrl: url,
-            env: [],
+            env: envFromGraphDescriptor(graph),
             assets: assetsFromGraphDescriptor(graph),
           }),
           inputs: BreadboardUI.Data.inputsFromSettings(this.#settings),
@@ -2820,13 +2819,27 @@ export class Main extends LitElement {
           this.#boardOverflowMenuConfiguration
         ) {
           const tabId = this.#boardOverflowMenuConfiguration.tabId;
-          const actions: BreadboardUI.Types.OverflowAction[] = [
-            {
-              title: Strings.from("COMMAND_SAVE_PROJECT_AS"),
-              name: "save-as",
-              icon: "save",
+          const actions: BreadboardUI.Types.OverflowAction[] = [];
+
+          if (this.#runtime.board.canSave(tabId)) {
+            actions.push({
+              title: Strings.from("COMMAND_EDIT_PROJECT_INFORMATION"),
+              name: "edit",
+              icon: "edit",
               value: tabId,
-            },
+            });
+          }
+
+          if (this.#runtime.board.canPreview(tabId)) {
+            actions.push({
+              title: Strings.from("COMMAND_COPY_APP_PREVIEW_URL"),
+              name: "copy-preview-to-clipboard",
+              icon: "share",
+              value: tabId,
+            });
+          }
+
+          actions.push(
             {
               title: Strings.from("COMMAND_COPY_PROJECT_CONTENTS"),
               name: "copy-board-contents",
@@ -2834,43 +2847,14 @@ export class Main extends LitElement {
               value: tabId,
             },
             {
-              title: Strings.from("COMMAND_COPY_PROJECT_URL"),
-              name: "copy-to-clipboard",
-              icon: "copy",
+              title: Strings.from("COMMAND_EXPORT_PROJECT"),
+              name: "download",
+              icon: "download",
               value: tabId,
-            },
-            {
-              title: Strings.from("COMMAND_COPY_FULL_URL"),
-              name: "copy-tab-to-clipboard",
-              icon: "copy",
-              value: tabId,
-            },
-          ];
-
-          if (this.#runtime.board.canPreview(tabId)) {
-            actions.push({
-              title: Strings.from("COMMAND_COPY_APP_PREVIEW_URL"),
-              name: "copy-preview-to-clipboard",
-              icon: "copy",
-              value: tabId,
-            });
-          }
+            }
+          );
 
           if (this.#runtime.board.canSave(tabId)) {
-            actions.unshift({
-              title: Strings.from("COMMAND_SAVE_PROJECT"),
-              name: "save",
-              icon: "save",
-              value: tabId,
-            });
-
-            actions.push({
-              title: Strings.from("COMMAND_EDIT_PROJECT_INFORMATION"),
-              name: "edit",
-              icon: "edit",
-              value: tabId,
-            });
-
             actions.push({
               title: Strings.from("COMMAND_DELETE_PROJECT"),
               name: "delete",
@@ -2878,13 +2862,6 @@ export class Main extends LitElement {
               value: tabId,
             });
           }
-
-          actions.push({
-            title: Strings.from("COMMAND_EXPORT_PROJECT"),
-            name: "download",
-            icon: "download",
-            value: tabId,
-          });
 
           boardOverflowMenu = html`<bb-overflow-menu
             id="board-overflow"
@@ -3438,6 +3415,7 @@ export class Main extends LitElement {
               .graphStoreUpdateId=${this.graphStoreUpdateId}
               .showBoardReferenceMarkers=${this.showBoardReferenceMarkers}
               .chatController=${observers?.chatController}
+              .projectState=${projectState}
               .organizer=${projectState?.organizer}
               .signedIn=${signInAdapter.state === "valid"}
               .canRun=${this.canRun}
@@ -3607,12 +3585,13 @@ export class Main extends LitElement {
                   this.showNodeConfigurator = false;
                 }
 
-                this.#runtime.edit.changeNodeConfigurationPart(
+                await this.#runtime.edit.changeNodeConfigurationPart(
                   this.tab,
                   evt.id,
                   evt.configuration,
                   evt.subGraphId,
-                  evt.metadata
+                  evt.metadata,
+                  evt.ins
                 );
               }}
               @bbworkspacenewitemcreaterequest=${() => {
@@ -3685,6 +3664,19 @@ export class Main extends LitElement {
               @bbinputerror=${(evt: BreadboardUI.Events.InputErrorEvent) => {
                 this.toast(evt.detail, BreadboardUI.Events.ToastType.ERROR);
                 return;
+              }}
+              @bbboardtitleupdate=${async (
+                evt: BreadboardUI.Events.BoardTitleUpdateEvent
+              ) => {
+                await this.#runtime.edit.updateBoardTitle(this.tab, evt.title);
+              }}
+              @bbboarddescriptionupdate=${async (
+                evt: BreadboardUI.Events.BoardDescriptionUpdateEvent
+              ) => {
+                await this.#runtime.edit.updateBoardDescription(
+                  this.tab,
+                  evt.description
+                );
               }}
               @bbboardinfoupdate=${async (
                 evt: BreadboardUI.Events.BoardInfoUpdateEvent
@@ -3889,6 +3881,36 @@ export class Main extends LitElement {
                   true
                 );
               }}
+              @bbdroppedassets=${async (
+                evt: BreadboardUI.Events.DroppedAssetsEvent
+              ) => {
+                const projectState = this.#runtime.state.getOrCreate(
+                  this.tab?.mainGraphId,
+                  this.#runtime.edit.getEditor(this.tab)
+                );
+
+                if (!projectState) {
+                  this.toast(
+                    "Unable to add",
+                    BreadboardUI.Events.ToastType.ERROR
+                  );
+                  return;
+                }
+
+                await Promise.all(
+                  evt.assets.map((asset) => {
+                    return projectState?.organizer.addGraphAsset({
+                      path: asset.name,
+                      metadata: {
+                        title: asset.name,
+                        type: "file",
+                        visual: asset.visual,
+                      },
+                      data: [asset.content],
+                    });
+                  })
+                );
+              }}
               @bbedgeattachmentmove=${async (
                 evt: BreadboardUI.Events.EdgeAttachmentMoveEvent
               ) => {
@@ -3909,6 +3931,16 @@ export class Main extends LitElement {
                   evt.changeType,
                   evt.from,
                   evt.to,
+                  evt.subGraphId
+                );
+              }}
+              @bbassetedgechange=${async (
+                evt: BreadboardUI.Events.AssetEdgeChangeEvent
+              ) => {
+                await this.#runtime.edit.changeAssetEdge(
+                  this.tab,
+                  evt.changeType,
+                  evt.assetEdge,
                   evt.subGraphId
                 );
               }}

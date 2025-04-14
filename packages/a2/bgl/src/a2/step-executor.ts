@@ -38,14 +38,21 @@ export type PlanStep = {
   output?: string;
   isListOutput?: boolean;
   options?: {
-    disablePromptRewrite: boolean;
-    renderMode: string;
+    disablePromptRewrite?: boolean;
+    renderMode?: string;
   };
+};
+
+export type GcsConfig = {
+  bucket_name: string;
+  folder_path: string;
+  project_name: string;
 };
 
 export type ExecuteStepRequest = {
   planStep: PlanStep;
   execution_inputs: ContentMap;
+  output_gcs_config?: GcsConfig;
 };
 
 export type ExecuteStepResponse = {
@@ -63,7 +70,7 @@ function maybeExtractError(e: string): string {
 
 async function executeTool<
   T extends JsonSerializable = Record<string, JsonSerializable>,
->(api: string, params: Record<string, string>): Promise<Outcome<T>> {
+>(api: string, params: Record<string, string>): Promise<Outcome<T | string>> {
   const inputParameters = Object.keys(params);
   const execution_inputs = Object.fromEntries(
     Object.entries(params).map(([name, value]) => {
@@ -95,9 +102,7 @@ async function executeTool<
   try {
     return JSON.parse(jsonString) as T;
   } catch (e) {
-    return err(
-      `Error parsing "${api}" backend response: ${(e as Error).message}`
-    );
+    return jsonString;
   }
 }
 

@@ -14,7 +14,6 @@ import {
   GraphDescriptor,
   GraphLoader,
   GraphProviderCapabilities,
-  GraphProviderExtendedCapabilities,
   InspectableRun,
   InspectableRunEvent,
   InspectableRunInputs,
@@ -49,21 +48,26 @@ import { ModuleEditor } from "../module-editor/module-editor.js";
 import { createRef, ref, Ref } from "lit/directives/ref.js";
 import {
   CommandsSetSwitchEvent,
+  NodeConfigurationUpdateRequestEvent,
   ThemeEditRequestEvent,
+  WorkspaceSelectionStateEvent,
 } from "../../events/events.js";
 import {
   COMMAND_SET_GRAPH_EDITOR,
   COMMAND_SET_MODULE_EDITOR,
   MAIN_BOARD_ID,
 } from "../../constants/constants.js";
-import { Editor } from "../elements.js";
 import { classMap } from "lit/directives/class-map.js";
 import { Sandbox } from "@breadboard-ai/jsandbox";
 import { ChatController } from "../../state/chat-controller.js";
-import { Organizer } from "../../state/types.js";
+import { Project } from "../../state/types.js";
 import "../../revision-history/revision-history-panel.js";
 import "../../revision-history/revision-history-overlay.js";
-import type { HighlightEvent } from "../step-editor/events/events.js";
+import {
+  createEmptyGraphSelectionState,
+  createEmptyWorkspaceSelectionState,
+  createWorkspaceSelectionChangeId,
+} from "../../utils/workspace.js";
 
 const SIDE_ITEM_KEY = "bb-ui-controller-side-nav-item";
 
@@ -134,7 +138,7 @@ export class UI extends LitElement {
 
   @property()
   set sideNavItem(
-    item: "app-view" | "console" | "capabilities" | "revision-history"
+    item: "console" | "capabilities" | "revision-history" | "editor"
   ) {
     if (item === this.#sideNavItem) {
       return;
@@ -195,7 +199,7 @@ export class UI extends LitElement {
   accessor popoutExpanded = false;
 
   @state()
-  accessor organizer: Organizer | null = null;
+  accessor projectState: Project | null = null;
 
   @state()
   accessor signedIn = false;
@@ -203,9 +207,15 @@ export class UI extends LitElement {
   @state()
   accessor showAssetOrganizer = false;
 
-  #sideNavItem: "app-view" | "console" | "capabilities" | "revision-history" =
-    "app-view";
-  #graphEditorRef: Ref<Editor> = createRef();
+  @state()
+  accessor autoFocusEditor = false;
+
+  @state()
+  accessor outputMode: "app" | "console" = "app";
+
+  #autoFocusEditorOnRender = false;
+  #sideNavItem: "console" | "capabilities" | "revision-history" | "editor" =
+    "editor";
   #moduleEditorRef: Ref<ModuleEditor> = createRef();
 
   static styles = uiControllerStyles;
@@ -217,8 +227,8 @@ export class UI extends LitElement {
       | typeof this.sideNavItem
       | null;
 
-    if (!sideNavItem) {
-      this.sideNavItem = "app-view";
+    if (!sideNavItem || (sideNavItem as unknown as "app-view") === "app-view") {
+      this.sideNavItem = "editor";
     } else {
       this.sideNavItem = sideNavItem;
     }
@@ -249,6 +259,11 @@ export class UI extends LitElement {
           this.#moduleEditorRef.value.destroyEditor();
         }
       }
+    }
+
+    if (changedProperties.has("autoFocusEditor")) {
+      this.#autoFocusEditorOnRender = true;
+      this.autoFocusEditor = false;
     }
   }
 
@@ -313,12 +328,6 @@ export class UI extends LitElement {
           .items.get("Enable Custom Step Creation")?.value
       : false;
 
-    const useLegacyRenderer = this.settings
-      ? this.settings
-          .getSection(SETTINGS_TYPE.GENERAL)
-          .items.get("Use Legacy Graph Renderer")?.value
-      : false;
-
     const showAssetsInGraph = this.settings
       ? this.settings
           .getSection(SETTINGS_TYPE.GENERAL)
@@ -327,7 +336,6 @@ export class UI extends LitElement {
 
     const graph = this.editor?.inspect("") || null;
     let capabilities: false | GraphProviderCapabilities = false;
-    let extendedCapabilities: false | GraphProviderExtendedCapabilities = false;
     for (const boardServer of this.boardServers) {
       if (!this.graph || !this.graph.url) {
         continue;
@@ -336,7 +344,6 @@ export class UI extends LitElement {
       const canProvide = boardServer.canProvide(new URL(this.graph.url));
       if (canProvide) {
         capabilities = canProvide;
-        extendedCapabilities = boardServer.extendedCapabilities();
         break;
       }
     }
@@ -358,6 +365,7 @@ export class UI extends LitElement {
         this.editorRender,
         this.mode,
         this.selectionState,
+        this.highlightState,
         this.visualChangeId,
         this.graphTopologyUpdateId,
         this.showBoardReferenceMarkers,
@@ -374,43 +382,6 @@ export class UI extends LitElement {
         showCustomStepEditing,
       ],
       () => {
-        if (useLegacyRenderer) {
-          return html`<bb-editor
-            ${ref(this.#graphEditorRef)}
-            .graphStoreUpdateId=${this.graphStoreUpdateId}
-            .boardServerKits=${this.boardServerKits}
-            .graphStore=${this.graphStore}
-            .mainGraphId=${this.mainGraphId}
-            .showExperimentalComponents=${showExperimentalComponents}
-            .canRedo=${canRedo}
-            .canUndo=${canUndo}
-            .capabilities=${capabilities}
-            .collapseNodesByDefault=${collapseNodesByDefault}
-            .extendedCapabilities=${extendedCapabilities}
-            .graph=${graph}
-            .hideSubboardSelectorWhenEmpty=${hideSubboardSelectorWhenEmpty}
-            .highlightInvalidWires=${highlightInvalidWires}
-            .invertZoomScrollDirection=${invertZoomScrollDirection}
-            .readOnly=${this.readOnly}
-            .run=${run}
-            .showNodePreviewValues=${showNodePreviewValues}
-            .showNodeShortcuts=${showNodeShortcuts}
-            .showPortTooltips=${showPortTooltips}
-            .showSubgraphsInline=${this.mode === "tree"}
-            .showReadOnlyOverlay=${true}
-            .tabURLs=${this.tabURLs}
-            .topGraphResult=${this.topGraphResult}
-            .selectionState=${this.selectionState}
-            .visualChangeId=${this.visualChangeId}
-            .graphTopologyUpdateId=${this.graphTopologyUpdateId}
-            .boardServers=${this.boardServers}
-            .showBoardReferenceMarkers=${this.showBoardReferenceMarkers}
-            @bbshowassetorganizer=${() => {
-              this.showAssetOrganizer = true;
-            }}
-          ></bb-editor>`;
-        }
-
         return html`<bb-renderer
           .boardServerKits=${this.boardServerKits}
           .graph=${graph}
@@ -424,6 +395,45 @@ export class UI extends LitElement {
           .readOnly=${this.readOnly}
           .showExperimentalComponents=${showExperimentalComponents}
           .topGraphResult=${this.topGraphResult}
+          @bbnodeconfigurationupdaterequest=${(
+            evt: NodeConfigurationUpdateRequestEvent
+          ) => {
+            if (!evt.id) {
+              return;
+            }
+
+            this.sideNavItem = "editor";
+            this.autoFocusEditor = true;
+            const newState = createEmptyWorkspaceSelectionState();
+            const graphState = createEmptyGraphSelectionState();
+            const graphId = evt.subGraphId ? evt.subGraphId : MAIN_BOARD_ID;
+            const selectionChangeId = createWorkspaceSelectionChangeId();
+            graphState.nodes.add(evt.id);
+            newState.graphs.set(graphId, graphState);
+
+            // Intercept the port value click and convert it to a selection
+            // change *and* switch the side nav item with it.
+            evt.stopImmediatePropagation();
+
+            // If the item is already selected, skip the change.
+            if (
+              this.selectionState?.selectionState.graphs.has(graphId) &&
+              this.selectionState.selectionState.graphs
+                .get(graphId)
+                ?.nodes.has(evt.id)
+            ) {
+              return;
+            }
+
+            this.dispatchEvent(
+              new WorkspaceSelectionStateEvent(
+                selectionChangeId,
+                newState,
+                /** replaceExistingSelection */ true,
+                /** animated **/ false
+              )
+            );
+          }}
           @bbshowassetorganizer=${() => {
             this.showAssetOrganizer = true;
           }}
@@ -464,223 +474,218 @@ export class UI extends LitElement {
       themeHash = hash(themes[theme]);
     }
 
-    let sideNavItem: HTMLTemplateResult | symbol = nothing;
-    switch (this.sideNavItem) {
-      case "capabilities": {
-        sideNavItem = html` <bb-capabilities-selector></bb-capabilities-selector>`;
-        break;
-      }
+    const hideLast = this.status === STATUS.STOPPED;
+    const inputsFromLastRun = lastRun?.inputs() ?? null;
+    const nextNodeId = this.topGraphResult?.currentNode?.descriptor.id ?? null;
+    const graphUrl = this.graph?.url ? new URL(this.graph.url) : null;
 
-      case "app-view": {
-        sideNavItem = html`${guard(
-          [
-            run,
-            eventPosition,
-            this.graph,
-            this.topGraphResult,
-            this.signedIn,
-            this.selectionState,
-            themeHash,
-            this.boardServers,
-          ],
-          () => {
-            let topGraphResult = this.topGraphResult;
-            let isInSelectionState = false;
-            let showingOlderResult = false;
-            const mainBoardSelection =
-              this.selectionState?.selectionState.graphs.get(MAIN_BOARD_ID);
-            if (
-              mainBoardSelection &&
-              mainBoardSelection.nodes.size === 1 &&
-              this.topGraphResult
-            ) {
-              isInSelectionState = true;
-              topGraphResult = {
-                currentNode: structuredClone(this.topGraphResult.currentNode),
-                log: structuredClone(this.topGraphResult.log),
-                status: this.topGraphResult.status,
-              } as TopGraphRunResult;
+    let selectionCount = 0;
+    if (this.selectionState) {
+      selectionCount = [...this.selectionState.selectionState.graphs].reduce(
+        (prev, [, graph]) => {
+          return (
+            prev +
+            graph.assets.size +
+            graph.comments.size +
+            graph.nodes.size +
+            graph.references.size
+          );
+        },
+        0
+      );
+    }
+    const sideNavItem = [
+      html`${guard(
+        [run, events, eventPosition, this.debugEvent],
+        () =>
+          html` <div
+            id="board-console-container"
+            class=${classMap({ active: this.sideNavItem === "console" })}
+          >
+            <bb-board-activity
+              class=${classMap({ collapsed: this.debugEvent !== null })}
+              .graphUrl=${graphUrl}
+              .run=${run}
+              .events=${events}
+              .eventPosition=${eventPosition}
+              .inputsFromLastRun=${inputsFromLastRun}
+              .showExtendedInfo=${true}
+              .settings=${this.settings}
+              .showLogTitle=${false}
+              .logTitle=${"Run"}
+              .hideLast=${hideLast}
+              .boardServers=${this.boardServers}
+              .showDebugControls=${false}
+              .nextNodeId=${nextNodeId}
+              @pointerdown=${(evt: PointerEvent) => {
+                const [top] = evt.composedPath();
+                if (!(top instanceof HTMLElement) || !top.dataset.messageId) {
+                  return;
+                }
+                evt.stopImmediatePropagation();
+                const id = top.dataset.messageId;
+                const event = run?.getEventById(id);
+                if (!event) {
+                  // TODO: Offer the user more information.
+                  console.warn(`Unable to find event with ID "${id}"`);
+                  return;
+                }
+                if (event.type !== "node") {
+                  return;
+                }
 
-              const currentItem = [...mainBoardSelection.nodes][0];
-              if (currentItem) {
-                // Truncate the topGraphResult log to the end of the current
-                // item.
-                let currentItemId: string | null = null;
-                for (let i = 0; i < topGraphResult.log.length; i++) {
-                  const entry = topGraphResult.log[i];
-                  if (currentItemId !== null) {
-                    if (
-                      entry.type === "node" &&
-                      entry.descriptor.id !== currentItem
-                    ) {
-                      topGraphResult.log.length = i;
-                      break;
-                    }
+                this.debugEvent = event;
+              }}
+              name=${Strings.from("LABEL_PROJECT")}
+            ></bb-board-activity>
+            ${this.debugEvent
+              ? html`<bb-event-details
+                  .event=${this.debugEvent}
+                ></bb-event-details>`
+              : nothing}
+          </div>`
+      )}`,
+      html`${guard(
+        [
+          run,
+          eventPosition,
+          this.graph,
+          this.topGraphResult,
+          this.signedIn,
+          this.selectionState,
+          themeHash,
+          selectionCount,
+          this.boardServers,
+        ],
+        () => {
+          let topGraphResult = this.topGraphResult;
+          let isInSelectionState = false;
+          let showingOlderResult = false;
+          const mainBoardSelection =
+            this.selectionState?.selectionState.graphs.get(MAIN_BOARD_ID);
+          if (
+            mainBoardSelection &&
+            mainBoardSelection.nodes.size === 1 &&
+            this.topGraphResult
+          ) {
+            isInSelectionState = true;
+            topGraphResult = {
+              currentNode: structuredClone(this.topGraphResult.currentNode),
+              log: structuredClone(this.topGraphResult.log),
+              status: this.topGraphResult.status,
+            } as TopGraphRunResult;
 
-                    if (
-                      entry.type === "edge" &&
-                      entry.id?.startsWith(currentItemId)
-                    ) {
-                      // Include this edge value if it is an input.
-                      topGraphResult.log.length =
-                        entry.descriptor?.type === "input" ? i + 1 : i;
-                      break;
-                    }
+            const currentItem = [...mainBoardSelection.nodes][0];
+            if (currentItem) {
+              // Truncate the topGraphResult log to the end of the current
+              // item.
+              let currentItemId: string | null = null;
+              for (let i = 0; i < topGraphResult.log.length; i++) {
+                const entry = topGraphResult.log[i];
+                if (currentItemId !== null) {
+                  if (
+                    entry.type === "node" &&
+                    entry.descriptor.id !== currentItem
+                  ) {
+                    topGraphResult.log.length = i;
+                    break;
                   }
 
-                  if (entry.type !== "node") {
-                    continue;
-                  }
-
-                  if (entry.descriptor.id === currentItem) {
-                    currentItemId = entry.id;
-                    topGraphResult.currentNode = entry;
+                  if (
+                    entry.type === "edge" &&
+                    entry.id?.startsWith(currentItemId)
+                  ) {
+                    // Include this edge value if it is an input.
+                    topGraphResult.log.length =
+                      entry.descriptor?.type === "input" ? i + 1 : i;
+                    break;
                   }
                 }
 
-                // If we are at the head of the topGraphResult just use whatever
-                // its status is. If it's earlier in the run then we decide
-                // based on the most recent item. If it's an open edge then we
-                // consider it to be running, otherwise it is paused.
-                if (
-                  topGraphResult.log.length < this.topGraphResult.log.length
-                ) {
-                  showingOlderResult = true;
-                  const newestItem = topGraphResult.log.at(-1);
-                  if (newestItem?.type === "edge" && newestItem.end === null) {
-                    topGraphResult.status = "running";
-                  } else {
-                    topGraphResult.status = "paused";
-                  }
+                if (entry.type !== "node") {
+                  continue;
+                }
+
+                if (entry.descriptor.id === currentItem) {
+                  currentItemId = entry.id;
+                  topGraphResult.currentNode = entry;
+                }
+              }
+
+              // If we are at the head of the topGraphResult just use whatever
+              // its status is. If it's earlier in the run then we decide
+              // based on the most recent item. If it's an open edge then we
+              // consider it to be running, otherwise it is paused.
+              if (topGraphResult.log.length < this.topGraphResult.log.length) {
+                showingOlderResult = true;
+                const newestItem = topGraphResult.log.at(-1);
+                if (newestItem?.type === "edge" && newestItem.end === null) {
+                  topGraphResult.status = "running";
                 } else {
-                  if (
-                    topGraphResult.currentNode?.descriptor.id !== currentItem
-                  ) {
-                    // Tip of tree. Check to see if we've seen the currently
-                    // selected node. If not then this is a future node and we
-                    // should therefore remove the entire state.
-                    topGraphResult.currentNode = null;
-                    topGraphResult.log.length = 0;
-                    topGraphResult.status = "paused";
-                  }
+                  topGraphResult.status = "paused";
                 }
               } else {
-                console.warn(
-                  "Error with selection state",
-                  this.selectionState?.selectionState
-                );
+                if (topGraphResult.currentNode?.descriptor.id !== currentItem) {
+                  // Tip of tree. Check to see if we've seen the currently
+                  // selected node. If not then this is a future node and we
+                  // should therefore remove the entire state.
+                  topGraphResult.currentNode = null;
+                  topGraphResult.log.length = 0;
+                  topGraphResult.status = "paused";
+                }
               }
+            } else {
+              console.warn(
+                "Error with selection state",
+                this.selectionState?.selectionState
+              );
             }
-
-            return html`<bb-app-preview
-              .graph=${this.graph}
-              .themeHash=${themeHash}
-              .run=${run}
-              .eventPosition=${eventPosition}
-              .topGraphResult=${topGraphResult}
-              .showGDrive=${this.signedIn}
-              .isInSelectionState=${isInSelectionState}
-              .showingOlderResult=${showingOlderResult}
-              .boardServers=${this.boardServers}
-              @bbthemeeditrequest=${(evt: ThemeEditRequestEvent) => {
-                this.showThemeDesigner = true;
-                this.#themeOptions = evt.themeOptions;
-              }}
-            ></bb-app-preview>`;
           }
-        )}`;
-        break;
-      }
 
-      case "console": {
-        const hideLast = this.status === STATUS.STOPPED;
-        const inputsFromLastRun = lastRun?.inputs() ?? null;
-        const nextNodeId =
-          this.topGraphResult?.currentNode?.descriptor.id ?? null;
-
-        const graphUrl = this.graph?.url ? new URL(this.graph.url) : null;
-
-        sideNavItem = html`${guard(
-          [run, events, eventPosition, this.debugEvent],
-          () =>
-            html` <div id="board-console-container">
-              <bb-board-activity
-                class=${classMap({ collapsed: this.debugEvent !== null })}
-                .graphUrl=${graphUrl}
-                .run=${run}
-                .events=${events}
-                .eventPosition=${eventPosition}
-                .inputsFromLastRun=${inputsFromLastRun}
-                .showExtendedInfo=${true}
-                .settings=${this.settings}
-                .showLogTitle=${false}
-                .logTitle=${"Run"}
-                .hideLast=${hideLast}
-                .boardServers=${this.boardServers}
-                .showDebugControls=${false}
-                .nextNodeId=${nextNodeId}
-                @pointerdown=${(evt: PointerEvent) => {
-                  const [top] = evt.composedPath();
-                  if (!(top instanceof HTMLElement) || !top.dataset.messageId) {
-                    return;
-                  }
-                  evt.stopImmediatePropagation();
-                  const id = top.dataset.messageId;
-                  const event = run?.getEventById(id);
-                  if (!event) {
-                    // TODO: Offer the user more information.
-                    console.warn(`Unable to find event with ID "${id}"`);
-                    return;
-                  }
-                  if (event.type !== "node") {
-                    return;
-                  }
-
-                  this.debugEvent = event;
-                }}
-                name=${Strings.from("LABEL_PROJECT")}
-              ></bb-board-activity>
-              ${this.debugEvent
-                ? html`<bb-event-details
-                    .event=${this.debugEvent}
-                  ></bb-event-details>`
-                : nothing}
-            </div>`
-        )}`;
-        break;
-      }
-
-      case "revision-history": {
-        sideNavItem = html`
-          <bb-revision-history-panel
-            .history=${this.history}
-            @bbhighlight=${(event: HighlightEvent) => {
-              this.highlightState = event.highlightState;
+          return html`<bb-app-preview
+            class=${classMap({
+              active: this.sideNavItem === "editor" && selectionCount === 0,
+            })}
+            .graph=${this.graph}
+            .themeHash=${themeHash}
+            .run=${run}
+            .eventPosition=${eventPosition}
+            .topGraphResult=${topGraphResult}
+            .showGDrive=${this.signedIn}
+            .isInSelectionState=${isInSelectionState}
+            .showingOlderResult=${showingOlderResult}
+            .settings=${this.settings}
+            .boardServers=${this.boardServers}
+            .status=${this.status}
+            @bbthemeeditrequest=${(evt: ThemeEditRequestEvent) => {
+              this.showThemeDesigner = true;
+              this.#themeOptions = evt.themeOptions;
             }}
-          ></bb-revision-history-panel>
-        `;
-        break;
-      }
-
-      case null: {
-        sideNavItem = nothing;
-        break;
-      }
-
-      default: {
-        console.error(
-          `Internal error: Unexpected sideNavItem:`,
-          this.sideNavItem satisfies never
-        );
-        break;
-      }
-    }
+          ></bb-app-preview>`;
+        }
+      )}`,
+      html`<bb-entity-editor
+        class=${classMap({
+          active: this.sideNavItem === "editor" && selectionCount > 0,
+        })}
+        .autoFocus=${this.#autoFocusEditorOnRender}
+        .graph=${graph}
+        .graphTopologyUpdateId=${this.graphTopologyUpdateId}
+        .graphStore=${this.graphStore}
+        .graphStoreUpdateId=${this.graphStoreUpdateId}
+        .selectionState=${this.selectionState}
+        .mainGraphId=${this.mainGraphId}
+        .readOnly=${this.readOnly}
+        .projectState=${this.projectState}
+      ></bb-entity-editor>`,
+    ];
 
     let assetOrganizer: HTMLTemplateResult | symbol = nothing;
     if (this.showAssetOrganizer) {
       assetOrganizer = html`<bb-asset-organizer
-        .state=${this.organizer}
+        .state=${this.projectState?.organizer ?? null}
         .showGDrive=${this.signedIn}
+        .showExperimentalComponents=${showExperimentalComponents}
         @bboverlaydismissed=${() => {
           this.showAssetOrganizer = false;
         }}
@@ -718,20 +723,9 @@ export class UI extends LitElement {
         ${themeEditor}
       </div>
       <div id="side-nav" slot="slot-1">
-        <div id="side-nav-controls">
-        <button ?disabled=${this.sideNavItem === "app-view"} @click=${() => {
-          this.sideNavItem = "app-view";
-        }}>App view</button>
-        <button ?disabled=${this.sideNavItem === "console"} @click=${() => {
-          this.sideNavItem = "console";
-        }}>Console</button>
-        <button ?disabled=${this.sideNavItem === "revision-history"} @click=${() => {
-          this.sideNavItem = "revision-history";
-        }}>History</button>
-        </div>
         <div id="side-nav-content">
         ${sideNavItem}
-      </div>
+        </div>
       </div>
       </bb-splitter> ${modules.length > 0 ? moduleEditor : nothing}
     </div>`;

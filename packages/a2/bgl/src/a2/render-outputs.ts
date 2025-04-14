@@ -3,16 +3,17 @@
  */
 
 import { Template } from "./template";
-import { ok, toText, isEmpty } from "./utils";
+import { ok, err, toText, isEmpty, toLLMContent } from "./utils";
 import { callGenWebpage } from "./html-generator";
-import { ListExpander } from "./lists";
+import { fanOutContext, flattenContext } from "./lists";
+
+import read from "@read";
 
 export { invoke as default, describe };
 
 type InvokeInputs = {
   text?: LLMContent;
   instruction?: string;
-  "p-auto-render": boolean;
   "p-render-mode": string;
 };
 
@@ -22,51 +23,135 @@ type DescribeInputs = {
   };
 };
 
+type GraphMetadata = {
+  title?: string;
+  description?: string;
+  version?: string;
+  url?: string;
+  icon?: string;
+  visual?: {
+    presentation?: Presentation;
+  };
+  userModified?: boolean;
+  tags?: string[];
+  comments: Comment[];
+};
+
+type Comment = {
+  id: string;
+  text: string;
+  metadata: {
+    title: string;
+    visual: {
+      x: number;
+      y: number;
+      collapsed: "expanded";
+      outputHeight: number;
+    };
+  };
+};
+
+type Presentation = {
+  themes?: Record<string, Theme>;
+  theme?: string;
+};
+
+type Theme = {
+  themeColors?: ThemeColors;
+  template?: string;
+  splashScreen?: StoredDataCapabilityPart;
+};
+
+type ThemeColors = {
+  primaryColor?: string;
+  secondaryColor?: string;
+  backgroundColor?: string;
+  textColor?: string;
+  primaryTextColor?: string;
+};
+
+function defaultThemeColors(): ThemeColors {
+  return {
+    primaryColor: "#246db5",
+    secondaryColor: "#5cadff",
+    backgroundColor: "#ffffff",
+    textColor: "#1a1a1a",
+    primaryTextColor: "#ffffff",
+  };
+}
+
+async function getThemeColors(): Promise<ThemeColors> {
+  const readingMetadata = await read({ path: "/env/metadata" });
+  if (!ok(readingMetadata)) return defaultThemeColors();
+  const metadata = (readingMetadata.data?.at(0)?.parts?.at(0) as JSONPart)
+    ?.json as GraphMetadata;
+  if (!metadata) return defaultThemeColors();
+  const currentThemeId = metadata?.visual?.presentation?.theme;
+  if (!currentThemeId) return defaultThemeColors();
+  const themeColors =
+    metadata?.visual?.presentation?.themes?.[currentThemeId]?.themeColors;
+  if (!themeColors) return defaultThemeColors();
+  return { ...defaultThemeColors(), ...themeColors };
+}
+
+function themeColorsPrompt(colors: ThemeColors): string {
+  return `Unless otherwise specified, use the following theme colors:
+
+- primary color: ${colors.primaryColor}
+- secondary color: ${colors.secondaryColor}
+- background color: ${colors.backgroundColor}
+- text color: ${colors.textColor}
+- primary text color: ${colors.primaryTextColor}
+
+`;
+}
+
 async function invoke({
   text,
   instruction,
-  "p-auto-render": autoRender,
   "p-render-mode": renderMode,
   ...params
 }: InvokeInputs) {
+  if (!text) {
+    text = toLLMContent("");
+  }
   const template = new Template(text);
   const substituting = await template.substitute(params, async () => "");
   if (!ok(substituting)) {
     return substituting;
   }
-  if (autoRender && !renderMode) {
-    renderMode = "Markdown";
-  }
-  renderMode = renderMode || "Manual";
-  console.log("Rendering mode: " + renderMode);
-  const context = await new ListExpander(substituting, []).map(
-    async (content) => {
-      let out = content;
-      if (renderMode != "Manual") {
-        let instruction = "Render content with markdown format.";
-        if (renderMode === "HTML" || renderMode === "Interactive") {
-          instruction = "Render content as a mobile webpage.";
-        }
-        instruction +=
-          " Assume content will render on a mobile device. Use a responsive or mobile-friendly layout whenever possible and minimize unnecessary padding or margins.";
-        console.log("Generating output based on instruction: ", instruction);
-        const webPage = await callGenWebpage(
-          instruction,
-          [substituting],
-          renderMode
-        );
-        if (!ok(webPage)) {
-          console.error("Failed to generated output");
-        } else {
-          out = await webPage;
-          console.log(out);
-        }
-      }
-      return out;
-    }
+  let context = await fanOutContext(
+    substituting,
+    undefined,
+    async (instruction) => instruction
   );
   if (!ok(context)) return context;
-  return { context };
+  context = flattenContext(context);
+  renderMode = renderMode || "Manual";
+  console.log("Rendering mode: " + renderMode);
+  let out = context;
+  if (renderMode != "Manual") {
+    let instruction = "Render content with markdown format.";
+    if (renderMode === "HTML" || renderMode === "Interactive") {
+      instruction = `Render content as a mobile webpage.
+
+${themeColorsPrompt(await getThemeColors())}
+`;
+    }
+    instruction +=
+      " Assume content will render on a mobile device. Use a responsive or mobile-friendly layout whenever possible and minimize unnecessary padding or margins.";
+    console.log("Generating output based on instruction: ", instruction);
+    const webPage = await callGenWebpage(instruction, context, renderMode);
+    if (!ok(webPage)) {
+      console.error("Failed to generated html output");
+    } else {
+      out = [await webPage];
+      console.log(out);
+    }
+  }
+  return out;
+  if (!ok(out)) return out;
+  return { context: out };
 }
 
 async function describe({ inputs: { text } }: DescribeInputs) {
@@ -113,7 +198,7 @@ async function describe({ inputs: { text } }: DescribeInputs) {
     title: "Render Outputs",
     metadata: {
       icon: "combine-outputs",
-      tags: ["quick-access", "core"],
+      tags: ["quick-access", "core", "output"],
       order: 100,
     },
   };

@@ -46,8 +46,15 @@ export {
 
 export { transformBlobs } from "./file-system/blob-transform.js";
 export { createEphemeralBlobStore } from "./file-system/ephemeral-blob-store.js";
-export { createFileSystem } from "./file-system/index.js";
+export {
+  createFileSystem,
+  Path,
+  writablePathFromString,
+} from "./file-system/index.js";
 
-export { assetsFromGraphDescriptor } from "./file-system/assets.js";
+export {
+  assetsFromGraphDescriptor,
+  envFromGraphDescriptor,
+} from "./file-system/assets.js";
 
 export { StubFileSystem } from "./file-system/stub-file-system.js";

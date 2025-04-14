@@ -27,13 +27,24 @@ const API_NAME = "ai_image_editing";
 
 async function callImageEdit(
   instruction: string,
-  image_content: LLMContent,
-  disablePromptRewrite: boolean
-): Promise<LLMContent> {
-  const imageChunk = toInlineData(image_content);
-  if (!imageChunk) {
+  imageContent: LLMContent[],
+  disablePromptRewrite: boolean,
+  aspectRatio: string = "1:1"
+): Promise<LLMContent[]> {
+  const imageChunks = [];
+  for (const element of imageContent) {
+    const inlineChunk = toInlineData(element);
+    if (inlineChunk && inlineChunk != null) {
+      imageChunks.push({
+        mimetype: inlineChunk.mimeType,
+        data: inlineChunk.data,
+      });
+    }
+  }
+  if (!imageChunks) {
     throw new Error("No image provided to image edit call");
   }
+  console.log("Number of input images: " + String(imageChunks.length));
   const encodedInstruction = btoa(unescape(encodeURIComponent(instruction)));
   const body = {
     planStep: {
@@ -48,18 +59,21 @@ async function callImageEdit(
     },
     execution_inputs: {
       input_image: {
-        chunks: [
-          {
-            mimetype: imageChunk.mimeType,
-            data: imageChunk.data,
-          },
-        ],
+        chunks: imageChunks,
       },
       input_instruction: {
         chunks: [
           {
             mimetype: "text/plain",
             data: encodedInstruction,
+          },
+        ],
+      },
+      aspect_ratio_key: {
+        chunks: [
+          {
+            mimetype: "text/plain",
+            data: btoa(aspectRatio),
           },
         ],
       },
@@ -73,20 +87,20 @@ async function callImageEdit(
   console.log("response");
   console.log(response);
   if (!ok(response)) {
-    return toLLMContent("Image Editing failed: " + response.$error);
+    return [toLLMContent("Image Editing failed: " + response.$error)];
   }
 
   const outContent = response.executionOutputs[OUTPUT_NAME];
   if (!outContent) {
-    return toLLMContent("Error: No image returned from backend");
+    return [toLLMContent("Error: No image returned from backend")];
   }
-  return toLLMContentInline(
-    outContent.chunks[0].mimetype,
-    outContent.chunks[0].data
-  );
+  return outContent.chunks.map((c) => toLLMContentInline(c.mimetype, c.data));
 }
 
-async function callImageGen(imageInstruction: string): Promise<LLMContent> {
+async function callImageGen(
+  imageInstruction: string,
+  aspectRatio: string = "1:1"
+): Promise<LLMContent[]> {
   const executionInputs: ContentMap = {};
   const encodedInstruction = btoa(
     unescape(encodeURIComponent(imageInstruction))
@@ -96,6 +110,14 @@ async function callImageGen(imageInstruction: string): Promise<LLMContent> {
       {
         mimetype: "text/plain",
         data: encodedInstruction,
+      },
+    ],
+  };
+  executionInputs["aspect_ratio_key"] = {
+    chunks: [
+      {
+        mimetype: "text/plain",
+        data: btoa(aspectRatio),
       },
     ],
   };
@@ -112,20 +134,14 @@ async function callImageGen(imageInstruction: string): Promise<LLMContent> {
   } satisfies ExecuteStepRequest;
   const response = await executeStep(body);
   if (!ok(response)) {
-    return toLLMContent("Image generation failed: " + response.$error);
+    return [toLLMContent("Image generation failed: " + response.$error)];
   }
 
-  let returnVal;
-  for (let value of Object.values(response.executionOutputs)) {
-    const mimetype = value.chunks[0].mimetype;
-    if (mimetype.startsWith("image")) {
-      returnVal = toLLMContentInline(mimetype, value.chunks[0].data);
-    }
+  const outContent = response.executionOutputs[OUTPUT_NAME];
+  if (!outContent) {
+    return [toLLMContent("Error: No image returned from backend")];
   }
-  if (!returnVal) {
-    return toLLMContent("Error: No image returned from backend");
-  }
-  return returnVal;
+  return outContent.chunks.map((c) => toLLMContentInline(c.mimetype, c.data));
 }
 
 function promptExpander(

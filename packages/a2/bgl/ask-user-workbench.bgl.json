@@ -4,34 +4,85 @@
   "version": "0.0.1",
   "nodes": [
     {
-      "id": "a2-21820fca",
-      "type": "file://bgl/a2.bgl.json#21ee02e7-83fa-49d0-964c-0cab10eafc2c",
+      "id": "98e0f227-02d4-41cd-b81e-06ca190d8c68",
+      "type": "embed://a2/a2.bgl.json#21ee02e7-83fa-49d0-964c-0cab10eafc2c",
       "metadata": {
-        "visual": {
-          "x": -720,
-          "y": -380,
-          "collapsed": "expanded",
-          "outputHeight": 308
-        },
         "title": "Ask User",
-        "logLevel": "info"
+        "visual": {
+          "x": -600,
+          "y": -380
+        },
+        "userModified": false
       },
       "configuration": {
         "description": {
           "role": "user",
           "parts": [
             {
-              "text": "Tell me about your day"
+              "text": "{{\"type\":\"in\",\"path\":\"1464b633-d235-4b1c-ab2d-fb99e970bc98\",\"title\":\"Make Speech\"}}"
             }
           ]
         },
-        "p-modality": "Image"
+        "p-modality": "Any"
+      }
+    },
+    {
+      "id": "1464b633-d235-4b1c-ab2d-fb99e970bc98",
+      "type": "embed://a2/audio-generator.bgl.json#module:main",
+      "metadata": {
+        "title": "Make Speech",
+        "visual": {
+          "x": -900,
+          "y": -440
+        },
+        "userModified": false
+      },
+      "configuration": {
+        "text": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "Hello world!"
+            }
+          ]
+        },
+        "voice": "Female (English)"
       }
     }
   ],
-  "edges": [],
+  "edges": [
+    {
+      "from": "1464b633-d235-4b1c-ab2d-fb99e970bc98",
+      "to": "98e0f227-02d4-41cd-b81e-06ca190d8c68",
+      "out": "context",
+      "in": "p-z-1464b633-d235-4b1c-ab2d-fb99e970bc98"
+    }
+  ],
   "metadata": {
-    "visual": {}
+    "visual": {
+      "presentation": {
+        "themes": {
+          "2777068e-7503-4208-ad34-1c5f02781340": {
+            "themeColors": {
+              "primaryColor": "#246db5",
+              "secondaryColor": "#5cadff",
+              "backgroundColor": "#ffffff",
+              "textColor": "#1a1a1a",
+              "primaryTextColor": "#ffffff"
+            },
+            "template": "basic",
+            "splashScreen": {
+              "storedData": {
+                "handle": "/images/app/generic-flow.jpg",
+                "mimeType": "image/jpeg"
+              }
+            }
+          }
+        },
+        "theme": "2777068e-7503-4208-ad34-1c5f02781340"
+      }
+    },
+    "parameters": {}
   },
   "assets": {
     "@@thumbnail": {
@@ -39,7 +90,7 @@
         "title": "Thumbnail",
         "type": "file"
       },
-      "data": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjUwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDI1MCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICA8cmVjdCB4PSI2Ny42NSIKICAgICAgICAgICAgICAgICAgICB5PSIxMC4wMCIKICAgICAgICAgICAgICAgICAgICB3aWR0aD0iMTE0LjcxIgogICAgICAgICAgICAgICAgICAgIGhlaWdodD0iMTgwLjAwIgogICAgICAgICAgICAgICAgICAgIHJ4PSIzLjUiCiAgICAgICAgICAgICAgICAgICAgZmlsbD0id2hpdGUiCiAgICAgICAgICAgICAgICAgICAgc3Ryb2tlPSIjMjBhMjAyIiAvPgogICAgICAKICAgIDwvc3ZnPg=="
+      "data": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjUwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDI1MCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICA8cmVjdCB4PSIxMzMuMjEiCiAgICAgICAgICAgICAgICAgICAgeT0iOTEuNzkiCiAgICAgICAgICAgICAgICAgICAgd2lkdGg9IjEwNi43OSIKICAgICAgICAgICAgICAgICAgICBoZWlnaHQ9IjQxLjA3IgogICAgICAgICAgICAgICAgICAgIHJ4PSIzLjUiCiAgICAgICAgICAgICAgICAgICAgZmlsbD0id2hpdGUiCiAgICAgICAgICAgICAgICAgICAgc3Ryb2tlPSIjMjBhMjAyIiAvPgo8cmVjdCB4PSIxMC4wMCIKICAgICAgICAgICAgICAgICAgICB5PSI2Ny4xNCIKICAgICAgICAgICAgICAgICAgICB3aWR0aD0iMTA2Ljc5IgogICAgICAgICAgICAgICAgICAgIGhlaWdodD0iNDEuMDciCiAgICAgICAgICAgICAgICAgICAgcng9IjMuNSIKICAgICAgICAgICAgICAgICAgICBmaWxsPSJ3aGl0ZSIKICAgICAgICAgICAgICAgICAgICBzdHJva2U9IiM3NzU3ZDkiIC8+CiAgICAgIAogICAgPC9zdmc+"
     }
   }
 }

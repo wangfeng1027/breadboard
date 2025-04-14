@@ -296,11 +296,15 @@ export type GraphInlineMetadata = {
  * - `connector-configure`: The graph provides configuration of a connector.
  * - `connector-load`: The graph provides loading capability of a connector.
  * - `connector-save`: The graph provides saving capability of a connector.
+ * - `connector-tools`: The graph provides tool discovery and calling
+ *    capability of a connector.
+
  */
 export type GraphTag =
   | "published"
   | "tool"
   | "experimental"
+  | "featured"
   | "component"
   | "deprecated"
   | "core"
@@ -311,7 +315,8 @@ export type GraphTag =
   | "connector-singleton"
   | "connector-configure"
   | "connector-load"
-  | "connector-save";
+  | "connector-save"
+  | "connector-tools";
 
 /**
  * Metadata about a parameter

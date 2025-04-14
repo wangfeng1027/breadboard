@@ -15,6 +15,7 @@ import {
   joinContent,
   toLLMContent,
   toLLMContentInline,
+  toLLMContentStored,
   toText,
   toInlineData,
   extractInlineData,
@@ -34,10 +35,17 @@ import {
   executeStep,
 } from "./a2/step-executor";
 
+const ASPECT_RATIOS = ["9:16", "16:9"];
+const OUTPUT_NAME = "generated_video";
+const GCS_PROJECT = "appcatalyst-449123";
+const STORAGE_PREFIX = "https://storage.mtls.cloud.google.com";
+const STORE_IN_GCS = false;
+
 type VideoGeneratorInputs = {
   context: LLMContent[];
   instruction?: LLMContent;
   "p-disable-prompt-rewrite": boolean;
+  "p-aspect-ratio": string;
 };
 
 type VideoGeneratorOutputs = {
@@ -49,8 +57,17 @@ export { invoke as default, describe };
 async function callVideoGen(
   prompt: string,
   imageContent: LLMContent | undefined,
-  disablePromptRewrite: boolean
+  disablePromptRewrite: boolean,
+  aspectRatio: string
 ): Promise<LLMContent> {
+  let gcsOutputConfig;
+  if (STORE_IN_GCS) {
+    gcsOutputConfig = {
+      bucket_name: "appcatalyst-bucket-test",
+      folder_path: "generated_videos",
+      project_name: GCS_PROJECT,
+    };
+  }
   // TODO(askerryryan): Respect disablePromptRewrite;
   const executionInputs: ContentMap = {};
   const encodedPrompt = btoa(unescape(encodeURIComponent(prompt)));
@@ -59,6 +76,14 @@ async function callVideoGen(
       {
         mimetype: "text/plain",
         data: encodedPrompt,
+      },
+    ],
+  };
+  executionInputs["aspect_ratio_key"] = {
+    chunks: [
+      {
+        mimetype: "text/plain",
+        data: btoa(aspectRatio),
       },
     ],
   };
@@ -87,8 +112,10 @@ async function callVideoGen(
       modelApi: "generate_video",
       inputParameters: inputParameters,
       systemPrompt: "",
+      output: OUTPUT_NAME,
     },
     execution_inputs: executionInputs,
+    output_gcs_config: gcsOutputConfig,
   } satisfies ExecuteStepRequest;
   // TODO(askerryryan): Remove when stable.
   console.log("REQUEST:");
@@ -105,6 +132,11 @@ async function callVideoGen(
     const mimetype = value.chunks[0].mimetype;
     if (mimetype.startsWith("video")) {
       returnVal = toLLMContentInline(mimetype, value.chunks[0].data);
+    } else if (mimetype == "text/gcs-path") {
+      const returnedHandle = atob(value.chunks[0].data);
+      console.log("Payload written to ", returnedHandle);
+      const gcsUrl = returnedHandle.replace(GCS_PROJECT, STORAGE_PREFIX);
+      returnVal = toLLMContentStored(mimetype, gcsUrl);
     }
   }
   if (!returnVal) {
@@ -117,12 +149,16 @@ async function invoke({
   context,
   instruction,
   "p-disable-prompt-rewrite": disablePromptRewrite,
+  "p-aspect-ratio": aspectRatio,
   ...params
 }: VideoGeneratorInputs): Promise<Outcome<VideoGeneratorOutputs>> {
   context ??= [];
   let instructionText = "";
   if (instruction) {
     instructionText = toText(instruction).trim();
+  }
+  if (!aspectRatio) {
+    aspectRatio = "9:16";
   }
   // 2) Substitute variables and magic image reference.
   // Note: it is important that images are not subsituted in here as they will
@@ -131,7 +167,7 @@ async function invoke({
   const toolManager = new ToolManager(new ArgumentNameGenerator());
   const substituting = await template.substitute(
     params,
-    async ({ path: url }) => toolManager.addTool(url)
+    async ({ path: url, instance }) => toolManager.addTool(url, instance)
   );
   if (!ok(substituting)) {
     return substituting;
@@ -174,7 +210,8 @@ async function invoke({
       const content = await callVideoGen(
         combinedInstruction,
         imageContext.at(0),
-        disablePromptRewrite
+        disablePromptRewrite,
+        aspectRatio
       );
       return content;
     }
@@ -216,6 +253,14 @@ async function describe({ inputs: { instruction } }: DescribeInputs) {
           description:
             "By default, inputs and instructions can be automatically expanded into a higher quality video prompt. Check to disable this re-writing behavior.",
         },
+        "p-aspect-ratio": {
+          type: "string",
+          behavior: ["hint-text", "config"],
+          title: "Aspect Ratio",
+          enum: ASPECT_RATIOS,
+          description: "The aspect ratio of the generated video",
+          default: "1:1",
+        },
         ...template.schemas(),
       },
       behavior: ["at-wireable"],
@@ -233,7 +278,7 @@ async function describe({ inputs: { instruction } }: DescribeInputs) {
       },
       additionalProperties: false,
     } satisfies Schema,
-    title: "Make Video [Beta]",
+    title: "Make Video",
     metadata: {
       icon: "generative-video",
       tags: ["quick-access", "generative"],

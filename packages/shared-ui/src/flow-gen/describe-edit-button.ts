@@ -41,11 +41,28 @@ export class DescribeEditButton extends LitElement {
       :host {
         position: relative;
         width: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
 
       #edit-button {
         width: 100%;
         --bb-icon: var(--bb-add-icon-generative-text-inverted);
+      }
+
+      :host([monochrome]) {
+        width: 20px;
+        height: 20px;
+
+        & #edit-button {
+          --background-size: 16px;
+          --background-color: var(--bb-neutral-200);
+          --background-color-active: var(--bb-neutral-300);
+          --box-shadow: none;
+          --border-radius: var(--bb-grid-size);
+          --bb-icon: var(--bb-add-icon-generative-text);
+        }
       }
 
       #panel {
@@ -55,6 +72,8 @@ export class DescribeEditButton extends LitElement {
       }
       :host([popoverPosition="above"]) #panel {
         bottom: calc(36px + 8px);
+        right: 50%;
+        translate: 50% 0;
       }
       :host([popoverPosition="below"]) #panel {
         top: calc(36px + 8px);
@@ -117,6 +136,9 @@ export class DescribeEditButton extends LitElement {
 
   @property({ reflect: true })
   accessor popoverPosition: "above" | "below" = "below";
+
+  @property({ reflect: true, type: Boolean })
+  accessor monochrome = false;
 
   @property({})
   accessor label = Strings.from("COMMAND_DESCRIBE_EDIT");

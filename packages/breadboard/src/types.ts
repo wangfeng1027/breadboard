@@ -99,6 +99,12 @@ export type BehaviorSchema =
    */
   | "hint-preview"
   /**
+   * In combination with "config" and "reactive", hints that the port controls
+   * the rest of the configuration and may be used as the first to be
+   * displayed in the UI.
+   */
+  | "hint-controller"
+  /**
    * Hints that the text is short (e.g. a query) and needs a single line treatment.
    */
   | "hint-single-line"
@@ -172,7 +178,22 @@ export type BehaviorSchema =
    * Indicates that this entire node supports "@"-wiring, where the wires
    * are automatically created and allocated using a pre-defined scheme.
    */
-  | "at-wireable";
+  | "at-wireable"
+  /**
+   * Indicates that when the value of this port changes, the entire input
+   * and/or output schema of the node may change as well, and a describer must
+   * be invoked again to get the new schema.
+   */
+  | "reactive";
+
+export type SchemaEnumValue =
+  | string
+  | {
+      id: string;
+      title?: string;
+      description?: string;
+      icon?: string;
+    };
 
 export type Schema = {
   title?: string;
@@ -193,7 +214,7 @@ export type Schema = {
    */
   icon?: string;
   transient?: boolean;
-  enum?: string[];
+  enum?: SchemaEnumValue[];
   /**
    * The default value of the schema. The UI can use this to pre-populate a
    * field with a value, if there is no `examples` present.

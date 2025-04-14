@@ -32,7 +32,7 @@ export type ToolParamPart = {
   type: "tool";
   path: string;
   title: string;
-  connectorInstance?: string;
+  instance?: string;
 };
 
 export type AssetParamPart = {
@@ -99,12 +99,15 @@ class Template {
 
   #mergeTextParts(parts: TemplatePart[]) {
     const merged = [];
-    for (const part of parts) {
+    for (let part of parts) {
       if ("text" in part) {
         const last = merged[merged.length - 1];
         if (last && "text" in last) {
           last.text += part.text;
         } else {
+          // We do a copy here otherwise the part is mutated, which
+          // causes problems if the same part appears in the list twice.
+          part = JSON.parse(JSON.stringify(part));
           merged.push(part);
         }
       } else {
@@ -141,14 +144,14 @@ class Template {
             maybeTemplatePart = JSON.parse(json);
             if (isParamPart(maybeTemplatePart)) {
               // Do some extra parsing for connector tools
-              if (isTool(maybeTemplatePart)) {
-                const [path, connector] = maybeTemplatePart.path.split("|");
-                if (connector && connector.startsWith("connectors/")) {
-                  maybeTemplatePart.path = path;
-                  maybeTemplatePart.connectorInstance = connector;
-                }
-                console.log("TOOL", maybeTemplatePart);
-              }
+              // if (isTool(maybeTemplatePart)) {
+              //   const [path, connector] = maybeTemplatePart.path.split("|");
+              //   if (connector && connector.startsWith("connectors/")) {
+              //     maybeTemplatePart.path = path;
+              //     maybeTemplatePart.instance = connector;
+              //   }
+              //   console.log("TOOL", maybeTemplatePart);
+              // }
               parts.push(maybeTemplatePart);
             } else {
               maybeTemplatePart = null;
@@ -203,7 +206,9 @@ class Template {
       }
       return reading.data;
     } else if (isTool(param)) {
-      return await whenTool(param);
+      const substituted = await whenTool(param);
+      if (!ok(substituted)) return substituted;
+      if (!substituted) return param.title;
     } else if (isParameter(param)) {
       const path: FileSystemPath = `/env/parameters/${param.path}`;
       const reading = await readFile({ path });
@@ -235,7 +240,6 @@ class Template {
           replaced.push(...value.parts);
         } else if (isLLMContentArray(value)) {
           const last = this.#getLastNonMetadata(value);
-          console.log("LAST", last);
           if (last) {
             replaced.push(...last.parts);
           }

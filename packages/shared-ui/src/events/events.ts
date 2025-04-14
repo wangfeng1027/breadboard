@@ -29,11 +29,12 @@ import type {
   Schema,
   TemplatePart,
 } from "@google-labs/breadboard";
-import { ComponentExpansionState } from "../elements/editor/types.js";
 import type {
   AppTemplateAdditionalOptionsAvailable,
   AppTheme,
+  AssetEdge,
   Command,
+  DroppedAsset,
   EdgeAttachmentPoint,
   EdgeData,
   Settings,
@@ -120,6 +121,22 @@ export class SaveAsEvent extends Event {
 
   constructor() {
     super(SaveAsEvent.eventName, { ...eventInit });
+  }
+}
+
+export class BoardTitleUpdateEvent extends Event {
+  static eventName = "bbboardtitleupdate";
+
+  constructor(public readonly title: string) {
+    super(BoardTitleUpdateEvent.eventName, { ...eventInit });
+  }
+}
+
+export class BoardDescriptionUpdateEvent extends Event {
+  static eventName = "bbboarddescriptionupdate";
+
+  constructor(public readonly description: string) {
+    super(BoardDescriptionUpdateEvent.eventName, { ...eventInit });
   }
 }
 
@@ -333,7 +350,10 @@ export class DelayEvent extends Event {
 export class DragConnectorStartEvent extends Event {
   static eventName = "bbdragconnectorstart";
 
-  constructor(public readonly location: DOMPoint) {
+  constructor(
+    public readonly connectorType: "node" | "asset",
+    public readonly location: DOMPoint
+  ) {
     super(DragConnectorStartEvent.eventName, { ...eventInit });
   }
 }
@@ -933,6 +953,18 @@ export class EdgeChangeEvent extends Event {
   }
 }
 
+export class AssetEdgeChangeEvent extends Event {
+  static eventName = "bbassetedgechange";
+
+  constructor(
+    public readonly changeType: "add" | "remove",
+    public readonly assetEdge: AssetEdge,
+    public readonly subGraphId: string | null = null
+  ) {
+    super(AssetEdgeChangeEvent.eventName, { ...eventInit });
+  }
+}
+
 export class MultiEditEvent extends Event {
   static eventName = "bbmultiedit";
   constructor(
@@ -976,6 +1008,13 @@ export class EdgeAttachmentMoveEvent extends Event {
     public readonly attachmentPoint: EdgeAttachmentPoint
   ) {
     super(EdgeAttachmentMoveEvent.eventName, { ...eventInit });
+  }
+}
+
+export class DroppedAssetsEvent extends Event {
+  static eventName = "bbdroppedassets" as const;
+  constructor(public readonly assets: DroppedAsset[]) {
+    super(DroppedAssetsEvent.eventName, { ...eventInit });
   }
 }
 
@@ -1042,23 +1081,6 @@ export class GraphInteractionEvent extends Event {
 
   constructor() {
     super(GraphInteractionEvent.eventName, { ...eventInit });
-  }
-}
-
-export class GraphNodesVisualUpdateEvent extends Event {
-  static eventName = "bbgraphnodesmove";
-
-  constructor(
-    public readonly nodes: Array<{
-      readonly id: string;
-      readonly type: "node" | "comment";
-      readonly x: number;
-      readonly y: number;
-      readonly expansionState: ComponentExpansionState;
-    }>,
-    public readonly subGraphId: string | null
-  ) {
-    super(GraphNodesVisualUpdateEvent.eventName, { ...eventInit });
   }
 }
 
@@ -1362,7 +1384,8 @@ export class FastAccessSelectEvent extends Event {
     public readonly path: string,
     public readonly title: string,
     public readonly accessType: "asset" | "tool" | "in" | "param",
-    public readonly mimeType?: string
+    public readonly mimeType?: string,
+    public readonly instance?: string
   ) {
     super(FastAccessSelectEvent.eventName, { ...eventInit });
   }

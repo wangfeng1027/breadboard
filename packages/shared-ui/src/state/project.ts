@@ -7,7 +7,6 @@
 import {
   AssetPath,
   GraphIdentifier,
-  GraphTag,
   LLMContent,
   NodeIdentifier,
   ParameterMetadata,
@@ -20,7 +19,6 @@ import {
   err,
   GraphStoreEntry,
   MainGraphIdentifier,
-  MainGraphStoreExport,
   MutableGraphStore,
   ok,
   Outcome,
@@ -42,6 +40,7 @@ import {
 import { ReactiveFastAccess } from "./fast-access";
 import { SideBoardRuntime } from "../sideboards/types";
 import { configFromData } from "../connectors/util";
+import { isA2 } from "@breadboard-ai/a2";
 
 export { createProjectState, ReactiveProject };
 
@@ -57,7 +56,7 @@ function isTool(entry: GraphStoreEntry) {
     entry.tags?.includes("tool") &&
     !!entry.url &&
     entry?.tags.includes("quick-access") &&
-    (entry.url?.includes("/@shared/") || entry.url?.startsWith("file:"))
+    isA2(entry.url)
   );
 }
 
@@ -181,17 +180,19 @@ class ReactiveProject implements ProjectInternal {
   }
 
   async persistBlobs(contents: LLMContent[]): Promise<LLMContent[]> {
-    const url = this.#store.get(this.#mainGraphId)?.graph.url;
-    if (!url) return contents;
+    const urlString = this.#store.get(this.#mainGraphId)?.graph.url;
+    if (!urlString) return contents;
 
-    const server = this.#boardServerFinder(new URL(url));
+    const server = this.#boardServerFinder(new URL(urlString));
     if (!server || !server.dataPartTransformer) return contents;
 
+    const url = new URL(urlString);
+
     const transformed = await transformDataParts(
-      new URL(url),
+      url,
       contents,
       "persistent",
-      server.dataPartTransformer()
+      server.dataPartTransformer(url)
     );
     if (!ok(transformed)) {
       return contents;
@@ -268,33 +269,23 @@ class ReactiveProject implements ProjectInternal {
       }
     }
 
-    // Create product: component tool x component instance
+    // Add a tool bundle for each connector with "tools" export
     for (const graphAsset of this.graphAssets.values()) {
       const { path, connector, metadata: { title } = {} } = graphAsset;
-      if (!connector) continue;
+      if (!connector || !connector.tools) continue;
 
-      for (const tool of connector.tools || []) {
-        const connectorPath = makeConnectorToolPath(path, tool);
-        tools.push([connectorPath, instancify(tool, connectorPath, title)]);
-      }
+      tools.push([
+        connector.url,
+        {
+          url: connector.url,
+          title: `${title} Tools`,
+          icon: connector.icon,
+          connectorInstance: path,
+        } satisfies Tool,
+      ]);
     }
 
     updateMap(this.tools, tools);
-
-    function makeConnectorToolPath(path: string, tool: Tool) {
-      return `${tool.url}|${path}`;
-    }
-
-    /**
-     *
-     * Imbue the tool with the connector instance information.
-     *
-     */
-    function instancify(tool: Tool, path: string, title?: string): Tool {
-      title =
-        (title ? `${title}: ${tool.title}` : tool.title) || "Unnamed tool";
-      return { ...tool, url: path, title };
-    }
 
     function toTool(entry: GraphStoreEntry): [string, Tool] {
       return [
@@ -305,7 +296,7 @@ class ReactiveProject implements ProjectInternal {
           description: entry.description,
           order: entry.order || Number.MAX_SAFE_INTEGER,
           icon: entry.icon,
-        },
+        } satisfies Tool,
       ];
     }
   }
@@ -402,21 +393,25 @@ class ReactiveProject implements ProjectInternal {
     updateMap(
       this.connectors,
       connectors.map((connector) => {
+        const url = connector.url!;
         const load = connector.exportTags.includes("connector-load");
         const save = connector.exportTags.includes("connector-save");
-        const singleton = connector.tags?.includes("connector-singleton");
+        const tools = connector.exportTags.includes("connector-tools");
+        const singleton = !!connector.tags?.includes("connector-singleton");
+        const experimental = !!connector.tags?.includes("experimental");
         return [
-          connector.url!,
+          url,
           {
-            url: connector.url,
+            url,
             icon: connector.icon,
-            title: connector.title,
+            title: connector.title || "Unknown Connector",
             description: connector.description,
             singleton,
             load,
             save,
-            tools: createToolList(connector.exports),
-          },
+            tools,
+            experimental,
+          } satisfies Connector,
         ];
       })
     );
@@ -445,23 +440,4 @@ function updateMap<T extends SignalMap>(
   [...toDelete.values()].forEach((key) => {
     map.delete(key);
   });
-}
-
-function createToolList(exports: MainGraphStoreExport[]) {
-  return exports.filter((e) =>
-    noneOfTags(e.tags, [
-      "connector-configure",
-      "connector-load",
-      "connector-save",
-    ])
-  );
-}
-
-function noneOfTags(tags: string[] | undefined, noneOf: GraphTag[]): boolean {
-  if (!tags) return true;
-  const comparing = new Set<string>(noneOf);
-  for (const tag of tags) {
-    comparing.delete(tag);
-  }
-  return noneOf.length === comparing.size;
 }

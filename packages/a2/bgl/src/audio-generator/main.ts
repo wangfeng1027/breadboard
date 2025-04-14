@@ -120,7 +120,7 @@ async function invoke({
   const toolManager = new ToolManager(new ArgumentNameGenerator());
   const substituting = await template.substitute(
     params,
-    async ({ path: url }) => toolManager.addTool(url)
+    async ({ path: url, instance }) => toolManager.addTool(url, instance)
   );
   if (!ok(substituting)) {
     return substituting;
@@ -202,10 +202,10 @@ async function describe({ inputs: { text } }: DescribeInputs) {
       },
       additionalProperties: false,
     } satisfies Schema,
-    title: "Make Speech [v2, WIP]",
+    title: "Make Speech",
     metadata: {
       icon: "generative-audio",
-      tags: ["quick-access", "generative", "experimental"],
+      tags: ["quick-access", "generative"],
       order: 3,
     },
   };

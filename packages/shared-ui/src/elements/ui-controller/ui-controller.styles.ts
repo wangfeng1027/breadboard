@@ -639,7 +639,14 @@ export const styles = css`
     }
 
     & #side-nav-content {
-      height: calc(100% - var(--bb-grid-size-11));
+      height: 100%;
+
+      & bb-entity-editor {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        z-index: 2;
+      }
     }
   }
 
@@ -810,6 +817,18 @@ export const styles = css`
     &:focus {
       background-color: var(--bb-neutral-100);
       color: var(--bb-neutral-900);
+    }
+  }
+
+  bb-capabilities-selector,
+  bb-revision-history-panel,
+  #board-console-container,
+  bb-app-preview,
+  bb-entity-editor {
+    display: none;
+
+    &.active {
+      display: block;
     }
   }
 `;

@@ -19,7 +19,6 @@ import {
   isLLMContentArrayBehavior,
   isLLMContentBehavior,
 } from "../../../utils";
-import { getAssetType } from "../../../utils/mime-type";
 
 export function createTruncatedValue(port: InspectablePort | null) {
   const MAX_SIZE = 220;
@@ -50,10 +49,10 @@ export function createTruncatedValue(port: InspectablePort | null) {
             try {
               const items = JSON.parse(port.schema.default);
               if (items.length === 0) {
-                return "(empty list)";
+                return "(Empty list)";
               }
             } catch (err) {
-              return "(empty)";
+              return "(Empty)";
             }
           }
 
@@ -92,7 +91,7 @@ export function createTruncatedValue(port: InspectablePort | null) {
         if (isTextCapabilityPart(firstPart)) {
           valStr = firstPart.text;
           if (valStr === "") {
-            valStr = "(empty text)";
+            valStr = "(Empty)";
           }
         } else if (isInlineData(firstPart)) {
           valStr = firstPart.inlineData.mimeType;
@@ -116,12 +115,13 @@ export function createTruncatedValue(port: InspectablePort | null) {
   valStr = escapeHTMLEntities(valStr);
   const template = new Template(valStr);
   template.substitute((part) => {
-    const { type, title, invalid, mimeType } = part;
-    const assetType = getAssetType(mimeType) ?? "";
-    return `<label class="chiclet ${type} ${assetType} ${invalid ? "invalid" : ""}"><span>${Template.preamble(part)}</span><span class="visible">${title}</span><span>${Template.postamble()}</span></label>`;
+    return part.title;
   });
 
   valStr = template.renderable;
+  if (valStr.length >= 35) {
+    valStr = `${valStr.substring(0, 32)}...`;
+  }
 
   return valStr;
 }

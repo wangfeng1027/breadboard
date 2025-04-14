@@ -29,19 +29,19 @@ export type DefaultToolDescriptor = {
 
 const RESEARCH_TOOLS: DefaultToolDescriptor[] = [
   {
-    url: "./tools.bgl.json#module:search-web",
+    url: "embed://a2/tools.bgl.json#module:search-web",
     title: "Search Web",
   },
   {
-    url: "./tools.bgl.json#module:search-wikipedia",
+    url: "embed://a2/tools.bgl.json#module:search-wikipedia",
     title: "Search Wikipedia",
   },
   {
-    url: "./tools.bgl.json#module:get-webpage",
+    url: "embed://a2/tools.bgl.json#module:get-webpage",
     title: "Get Webpage",
   },
   {
-    url: "./tools.bgl.json#module:search-maps",
+    url: "embed://a2/tools.bgl.json#module:search-maps",
     title: "Search Maps",
   },
 ];
@@ -154,7 +154,7 @@ async function invoke({
   const template = new Template(plan);
   const substituting = await template.substitute(
     params,
-    async ({ path: url }) => toolManager.addTool(url)
+    async ({ path: url, instance }) => toolManager.addTool(url, instance)
   );
   if (!ok(substituting)) {
     return substituting;
