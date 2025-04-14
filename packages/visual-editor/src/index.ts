@@ -268,6 +268,9 @@ export class Main extends LitElement {
   @provide({ context: signinAdapterContext })
   accessor signinAdapter!: SigninAdapter;
 
+  @provide({context: BreadboardUI.Contexts.agentspaceUrlContext})
+  accessor agentspaceUrl: BreadboardUI.Contexts.AgentspaceFlowContent;
+
   @state()
   accessor selectedBoardServer = "Browser Storage";
 
@@ -434,6 +437,8 @@ export class Main extends LitElement {
   #initialize: Promise<void>;
   constructor(config: MainArguments) {
     super();
+
+    this.#prepareAgentsapceAdjustion();
 
     // This is a big hacky, since we're assigning a value to a constant object,
     // but okay here, because this constant is never re-assigned and is only
@@ -2245,17 +2250,29 @@ export class Main extends LitElement {
     return list;
   }
 
-  render() {
+  #prepareAgentsapceAdjustion() {
     const queryString = window.location.search;
     const urlParams = new URLSearchParams(queryString);
-    const instructions = urlParams.get('instructions');
-    const flowName = urlParams.get('name');
+    const instructions = urlParams.get('instructions') ?? '';
+    const flowName = urlParams.get('name') ?? '';
     const iframe = urlParams.get('iframe');
-    const flowGoal = urlParams.get('goal');
+    const flowGoal = urlParams.get('goal') ?? '';
     const isInsideAgentspaceIframe = !!iframe;
     if (isInsideAgentspaceIframe) {
       this.style.setProperty('--header-height', '0');
     }
+
+    this.agentspaceUrl = {
+      hideHeader: isInsideAgentspaceIframe,
+      agentName: flowName,
+      agentInstructions: instructions,
+      agentGoal: flowGoal,
+      isIframe: isInsideAgentspaceIframe,
+    }
+  }
+
+  render() {
+
     const signInAdapter = new BreadboardUI.Utils.SigninAdapter(
       this.tokenVendor,
       this.environment,
@@ -4077,10 +4094,6 @@ export class Main extends LitElement {
                 .boardServers=${this.#boardServers}
                 .boardServerNavState=${this.boardServerNavState}
                 .showAdditionalSources=${showAdditionalSources}
-                .hideListing=${isInsideAgentspaceIframe}
-                .prefilledFlowIntent=${instructions}
-                .prefilledFlowName=${flowName}
-                .prefilledFlowDescription=${flowGoal}
                 @bbgraphboardserverblankboard=${() => {
                   this.#attemptBoardCreate(blank(), { role: "user" });
                 }}

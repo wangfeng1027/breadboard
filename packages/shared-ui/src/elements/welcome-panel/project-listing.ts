@@ -28,6 +28,11 @@ import "../../flow-gen/describe-flow-panel.js";
 import "./homepage-search-button.js";
 import type { HomepageSearchButton } from "./homepage-search-button.js";
 import { icons } from "../../styles/icons.js";
+import {
+  agentspaceUrlContext,
+  type AgentspaceFlowContent,
+} from "../../contexts/agentspace-url-context.js";
+import { consume } from "@lit/context";
 
 const SHOW_OTHER_PEOPLES_BOARDS_KEY =
   "bb-project-listing-show-other-peoples-boards";
@@ -69,18 +74,6 @@ export class ProjectListing extends LitElement {
   @property()
   accessor selectedLocation = "Browser Storage";
 
-  @property()
-  accessor hideListing = false;
-
-  @property()
-  accessor prefilledFlowIntent = '';
-
-  @property()
-  accessor prefilledFlowName = '';
-
-  @property()
-  accessor prefilledFlowDescription = '';
-
   @state()
   accessor filter: string | null = null;
 
@@ -109,6 +102,9 @@ export class ProjectListing extends LitElement {
   @property()
   accessor recencyType: "local" | "session" = "session";
 
+  @consume({ context: agentspaceUrlContext })
+  accessor agentspaceFlowContent!: AgentspaceFlowContent;
+
   @state()
   accessor guides: Guides[] = [
     {
@@ -136,6 +132,10 @@ export class ProjectListing extends LitElement {
     css`
       * {
         box-sizing: border-box;
+      }
+      
+      .hide-display {
+        display: none;
       }
 
       :host {
@@ -1067,17 +1067,10 @@ export class ProjectListing extends LitElement {
     return html` <div id="wrapper" ${ref(this.#wrapperRef)}>
         <section id="hero">
           <bb-describe-flow-panel
-          .prefilledValue=${this.prefilledFlowIntent}
-          .prefilledName=${this.prefilledFlowName}
-          .prefilledDescription=${this.prefilledFlowDescription}
           ></bb-describe-flow-panel>
         </section>
 
-        ${this.hideListing
-          ? html``
-          : html `
-
-        <div id="board-listing">
+        <div id="board-listing" class=${classMap({'hide-display': this.agentspaceFlowContent.isIframe})}>
           <div id="locations">
             <!-- TODO(aomarks) According to mocks, the search button should be
                  rendered lower down, next to "Sort by". But that whole section
@@ -1430,7 +1423,6 @@ export class ProjectListing extends LitElement {
           </div>
         </div>
       </div>
-      `}
 
       ${this.showBoardServerOverflowMenu
         ? html` <div

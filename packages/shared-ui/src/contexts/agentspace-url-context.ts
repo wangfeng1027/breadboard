@@ -1,0 +1,13 @@
+import { createContext } from "@lit/context";
+
+
+export interface AgentspaceFlowContent {
+    hideHeader: boolean;
+    agentName: string;
+    agentInstructions: string;
+    agentGoal: string;
+    isIframe: boolean;
+}
+
+// Url context
+export const agentspaceUrlContext = createContext<AgentspaceFlowContent>(Symbol('bb-agentsapce-url-context'));

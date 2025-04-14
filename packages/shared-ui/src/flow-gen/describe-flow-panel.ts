@@ -20,6 +20,10 @@ import "../elements/input/expanding-textarea.js";
 import { chipStyles } from "../styles/chip.js";
 import { FlowGenerator } from "./flow-generator.js";
 import { AppCatalystApiClient } from "./app-catalyst.js";
+import {
+  agentspaceUrlContext,
+  type AgentspaceFlowContent,
+} from "../contexts/agentspace-url-context.js";
 
 const Strings = StringsHelper.forSection("ProjectListing");
 
@@ -167,6 +171,9 @@ export class DescribeFlowPanel extends LitElement {
   @consume({ context: sideBoardRuntime })
   accessor sideBoardRuntime!: SideBoardRuntime | undefined;
 
+  @consume({ context: agentspaceUrlContext })
+  accessor agentspaceFlowContent!: AgentspaceFlowContent;
+
   @state()
   accessor #state: State = { status: "initial" };
 
@@ -218,12 +225,11 @@ export class DescribeFlowPanel extends LitElement {
   }
 
   firstUpdated() {
-    if (!!this.prefilledValue) {
-      console.log('try!', this.prefilledValue);
-
+    const prefilledValue = this.agentspaceFlowContent.agentInstructions;
+    if (!!prefilledValue) {
       const input = this.#descriptionInput?.value;
       if (input) {
-        input.value = this.prefilledValue;
+        input.value = prefilledValue;
         input.focus();
         this.#onInputChange();
       }
@@ -277,15 +283,19 @@ export class DescribeFlowPanel extends LitElement {
       new AppCatalystApiClient(this.sideBoardRuntime)
     );
     const { flow } = await generator.oneShot({ intent });
-    if (this.prefilledName && flow ) {
-      flow.title = this.prefilledName;
-    }
-    console.log(this.prefilledDescription);
-    if (this.prefilledDescription && flow) {
-      flow.description = this.prefilledDescription;
-    }
-    console.log(flow);
+    this.#updateFlowBasedOnContext(flow);
     return flow;
+  }
+
+  #updateFlowBasedOnContext(flow: GraphDescriptor) {
+    const flowName = this.agentspaceFlowContent.agentName;
+    const flowDescription = this.agentspaceFlowContent.agentGoal;
+    if (!!flowName && flow ) {
+      flow.title = flowName;
+    }
+    if (!!flowDescription && flow) {
+      flow.description = flowDescription;
+    }
   }
 
   #onGenerateComplete(graph: GraphDescriptor) {
