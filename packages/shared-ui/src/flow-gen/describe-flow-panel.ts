@@ -5,7 +5,7 @@
  */
 
 import { LitElement, html, css, type PropertyValues } from "lit";
-import { customElement, property, property, state } from "lit/decorators.js";
+import { customElement, property, state } from "lit/decorators.js";
 import * as StringsHelper from "../strings/helper.js";
 import { outlineButtonWithIcon } from "../styles/outline-button-with-icon.js";
 import { createRef, ref } from "lit/directives/ref.js";

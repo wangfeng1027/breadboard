@@ -707,7 +707,7 @@ export class ProjectListing extends LitElement {
           <bb-describe-flow-panel></bb-describe-flow-panel>
         </section>
 
-        <div id="board-listing" class=${classMap({'hide-display': this.agentspaceFlowContent.isIframe})}>
+        <div id="board-listing" style="${this.agentspaceFlowContent.isIframe? "display:none":""}">
           <div id="locations">
             <!-- TODO(aomarks) According to mocks, the search button should be
                  rendered lower down, next to "Sort by". But that whole section
