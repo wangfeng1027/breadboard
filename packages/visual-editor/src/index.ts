@@ -271,7 +271,7 @@ export class Main extends LitElement {
   accessor signinAdapter!: SigninAdapter;
 
   @provide({context: BreadboardUI.Contexts.agentspaceUrlContext})
-  accessor agentspaceUrl: BreadboardUI.Contexts.AgentspaceFlowContent;
+  accessor agentspaceUrl!: BreadboardUI.Contexts.AgentspaceFlowContent;
 
   @state()
   accessor selectedBoardServer = "Browser Storage";
