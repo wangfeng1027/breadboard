@@ -29,6 +29,8 @@ import {
   isLLMContent,
   isTextCapabilityPart,
 } from "@google-labs/breadboard";
+import '@material/web/button/filled-button.js';
+import '@material/web/icon/icon.js';
 import { styleMap } from "lit/directives/style-map.js";
 import {
   AddAssetEvent,
@@ -591,10 +593,12 @@ export class Template extends LitElement implements AppTemplate {
                   var(--bb-grid-size-4) var(--bb-grid-size-3);
                 transition: transform 0.6s cubic-bezier(0, 0, 0.3, 1);
                 transform: translateY(100%);
-                background: var(--primary-color);
-                color: var(--primary-text-color);
+                color: black;
                 width: 100%;
                 display: flex;
+                border: 1px solid #0b57d0;
+                border-radius: 24px;
+                
 
                 min-height: 100px;
                 max-height: 385px;
@@ -608,6 +612,8 @@ export class Template extends LitElement implements AppTemplate {
                   flex-direction: column;
                   flex: 1;
                   overflow: auto;
+             
+                  color: black;
 
                   & p {
                     display: flex;
@@ -628,7 +634,7 @@ export class Template extends LitElement implements AppTemplate {
                     field-sizing: content;
                     resize: none;
                     background: transparent;
-                    color: var(--primary-text-color);
+                    color: black;
                     font: 400 var(--bb-title-medium) /
                       var(--bb-title-line-height-medium) var(--bb-font-family);
                     border: none;
@@ -638,9 +644,7 @@ export class Template extends LitElement implements AppTemplate {
                     scrollbar-width: none;
 
                     &::placeholder {
-                      color: oklch(
-                        from var(--primary-text-color) l c h / calc(alpha - 0.3)
-                      );
+                      color: #747775
                     }
                   }
                 }
@@ -974,14 +978,14 @@ export class Template extends LitElement implements AppTemplate {
             })}
           </div>
           <div class="controls">
-            <button
+            <md-button
               id="continue"
               @click=${() => {
                 continueRun(currentItem.id ?? "unknown");
               }}
             >
-              Continue
-            </button>
+              <md-icon>send</md-icon>
+            </md-button>
           </div>
         `;
       } else if (props.length > 0 && currentItem.descriptor?.type === "input") {
@@ -996,12 +1000,7 @@ export class Template extends LitElement implements AppTemplate {
           valueIsDefined && (valueHasKeys || valueIsNonEmptyArray);
 
         inputContents = html`
-          <bb-add-asset-button
-            .anchor=${"above"}
-            .useGlobalPosition=${false}
-            .showGDrive=${this.showGDrive}
-            ?disabled=${disabled}
-          ></bb-add-asset-button>
+     
 
           ${repeat(props, ([name, schema]) => {
             const dataType = isLLMContentArrayBehavior(schema)
@@ -1021,43 +1020,24 @@ export class Template extends LitElement implements AppTemplate {
             }
 
             return html`<div class="user-input">
-              <p>
-                ${schema.description ? html`${schema.description}` : nothing}
-              </p>
-
               <textarea
-                placeholder="Type something"
+                placeholder= ${schema.description ? schema.description : nothing}
                 name=${name}
                 type="text"
                 data-type=${dataType}
                 .value=${inputValue}
                 ?disabled=${disabled}
               ></textarea>
-              <bb-asset-shelf ${ref(this.#assetShelfRef)}></bb-asset-shelf>
             </div>`;
           })}
 
           <div class="controls">
-            <bb-speech-to-text
-              ?disabled=${disabled}
-              @bbutterance=${(evt: UtteranceEvent) => {
-                if (!this.#inputRef.value) {
-                  return;
-                }
-
-                const inputField =
-                  this.#inputRef.value.querySelector<HTMLTextAreaElement>(
-                    "textarea"
-                  );
-                if (!inputField) {
-                  return;
-                }
-
-                inputField.value = evt.parts
-                  .map((part) => part.transcript)
-                  .join("");
-              }}
-            ></bb-speech-to-text>
+          <bb-add-asset-button
+            .anchor=${"above"}
+            .useGlobalPosition=${false}
+            .showGDrive=${this.showGDrive}
+            ?disabled=${disabled}
+          ></bb-add-asset-button>
             <button
               id="continue"
               ?disabled=${disabled}
@@ -1238,7 +1218,7 @@ export class Template extends LitElement implements AppTemplate {
       <div id="input" class="stopped">
         <div>
           ${this.state === "anonymous" || this.state === "valid"
-            ? html`<button
+            ? html`<md-filled-button
                 id="run"
                 ?disabled=${this.#totalNodeCount === 0}
                 @click=${() => {
@@ -1246,7 +1226,7 @@ export class Template extends LitElement implements AppTemplate {
                 }}
               >
                 Start
-              </button>`
+              </md-filled-button>`
             : html`<button
                 id="sign-in"
                 ?disabled=${this.#totalNodeCount === 0}
