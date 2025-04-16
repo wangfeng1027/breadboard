@@ -673,11 +673,12 @@ export class Template extends LitElement implements AppTemplate {
 
                     &:not([disabled]) {
                       cursor: pointer;
-                      opacity: 0.5;
+                      // opacity: 0.5;
 
                       &:hover,
                       &:focus {
-                        opacity: 1;
+                        // opacity: 1;
+                        color: #444746;
                       }
                     }
                   }
