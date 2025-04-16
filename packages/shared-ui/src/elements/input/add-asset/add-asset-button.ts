@@ -42,10 +42,13 @@ export class AddAssetButton extends LitElement {
       width: var(--button-size, 40px);
       height: var(--button-size, 40px);
       border: none;
-      background: oklch(
-          from var(--primary-text-color) l c h / calc(alpha - 0.75)
-        )
-        var(--bb-icon-add) center center / 20px 20px no-repeat;
+      // background: oklch(
+      //     from var(--primary-text-color) l c h / calc(alpha - 0.75)
+      //   )
+      //   var(--bb-icon-add) center center / 20px 20px no-repeat;
+      font-size:22px;
+      background: #f8fafd;
+      // color: #747775;
       flex: 0 0 auto;
       border-radius: var(--button-border-radius, 50%);
       transition: opacity 0.3s cubic-bezier(0, 0, 0.3, 1);

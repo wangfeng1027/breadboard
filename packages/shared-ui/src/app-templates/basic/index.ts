@@ -403,7 +403,7 @@ export class Template extends LitElement implements AppTemplate {
 
             display: flex;
             flex-direction: column;
-            padding: var(--bb-grid-size-3);
+            // padding: var(--bb-grid-size-3);
             color: var(--text-color);
 
 
@@ -584,7 +584,7 @@ export class Template extends LitElement implements AppTemplate {
               & #input-container {
                 padding: 6px;
                 transition: transform 0.6s cubic-bezier(0, 0, 0.3, 1);
-                transform: translateY(100%);
+                // transform: translateY(100%);
                 color: black;
                 width: 100%;
                 // display: flex;
@@ -649,12 +649,14 @@ export class Template extends LitElement implements AppTemplate {
 
                   & #continue {
                     margin-left: var(--bb-grid-size-2);
-                    background: oklch(
-                        from var(--primary-text-color) l c h /
-                          calc(alpha - 0.75)
-                      )
-                      var(--bb-icon-send) center center / 20px 20px no-repeat;
-
+                    // background: oklch(
+                    //     from var(--primary-text-color) l c h /
+                    //       calc(alpha - 0.75)
+                    //   )
+                    //   var(--bb-icon-send) center center / 20px 20px no-repeat;
+                  // background: #f8fafd;
+                  background: #f8fafd var(--bb-icon-send) center center / 20px 20px no-repeat;
+                    color: #747775;
                     width: 40px;
                     height: 40px;
                     font-size: 0;
@@ -681,7 +683,6 @@ export class Template extends LitElement implements AppTemplate {
                   }
                 }
               }
-
               &.active.paused #input-container {
                 transform: translateY(0);
               }
@@ -770,7 +771,6 @@ export class Template extends LitElement implements AppTemplate {
       currentItem?.type === "edge" &&
       topGraphResult.status === "paused"
     ) {
-      console.log('paused' + topGraphResult.currentNode?.descriptor.metadata?.title);
       // Attempt to find the most recent output. If there is one, show it
       // otherwise show any message that's coming from the edge.
       let lastOutput = null;
@@ -793,7 +793,6 @@ export class Template extends LitElement implements AppTemplate {
       let bubbledValue: HTMLTemplateResult | symbol = nothing;
 
       if (topGraphResult.currentNode?.descriptor.metadata?.title) {
-        console.log('running' + topGraphResult.currentNode.descriptor.metadata.title)
         status = html`<div id="status">
           ${topGraphResult.currentNode.descriptor.metadata.title}
         </div>`;
@@ -944,7 +943,6 @@ export class Template extends LitElement implements AppTemplate {
     let inputContents: HTMLTemplateResult | symbol = nothing;
     let active = false;
     const currentItem = topGraphResult.log.at(-1);
-    console.log( currentItem);
     if (currentItem?.type === "edge") {
       const props = Object.entries(currentItem.schema?.properties ?? {});
       if (this.run && this.run.events.at(-1)?.type === "secret") {
@@ -985,8 +983,8 @@ export class Template extends LitElement implements AppTemplate {
             </md-button>
           </div>
         `;
+      // } else if (props.length > 0 && currentItem.descriptor?.type === "input") {
       } else {
-        console.log(props); 
         active = true;
         const valueIsDefined = currentItem.value !== undefined;
         const valueHasKeys =
@@ -1049,12 +1047,10 @@ export class Template extends LitElement implements AppTemplate {
         `;
       } 
       // else {
-      //   console.log('DONE=====')
       //   active = true;
       //   inputContents = placeholder;
       // }
     } else {
-      console.log('DONE33333=====')
       inputContents = placeholder;
     }
 
