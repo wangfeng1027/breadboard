@@ -45,10 +45,10 @@ export class TokenVendorImpl {
       return { state: "signedout" };
     }
     const grant = JSON.parse(grantJsonString) as TokenGrant;
-    console.log('grantToken', grant);
+    // console.log('grantToken', grant);
     const needsClientIdRepair = grant.client_id === undefined;
     if (grantIsExpired(grant) || needsClientIdRepair) {
-      console.log('expired');
+      // console.log('expired');
       return {
         state: "expired",
         grant,

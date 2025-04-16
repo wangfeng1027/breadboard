@@ -181,7 +181,7 @@ export const styles = css`
       border-radius: var(--bb-grid-size-4);
 
       &.active {
-        border: 1px solid var(--bb-neutral-300);
+        // border: 1px solid var(--bb-neutral-300);
       }
 
       & .loading {

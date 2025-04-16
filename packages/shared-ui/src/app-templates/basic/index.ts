@@ -406,10 +406,6 @@ export class Template extends LitElement implements AppTemplate {
             padding: var(--bb-grid-size-3);
             color: var(--text-color);
 
-            &::before {
-              flex: 1;
-              content: "";
-            }
 
             & bb-multi-output {
               --output-value-padding-x: var(--bb-grid-size-4);
@@ -580,28 +576,24 @@ export class Template extends LitElement implements AppTemplate {
               padding: var(--bb-grid-size-2) var(--bb-grid-size-3);
             }
 
-            &.finished {
-              display: none;
-            }
-
             &.paused,
-            &.running {
+            &.running,
+            &.finished  {
               width: 100%;
 
               & #input-container {
-                padding: var(--bb-grid-size-2) var(--bb-grid-size-3)
-                  var(--bb-grid-size-4) var(--bb-grid-size-3);
+                padding: 6px;
                 transition: transform 0.6s cubic-bezier(0, 0, 0.3, 1);
                 transform: translateY(100%);
                 color: black;
                 width: 100%;
-                display: flex;
+                // display: flex;
                 border: 1px solid #0b57d0;
                 border-radius: 24px;
                 
 
                 min-height: 100px;
-                max-height: 385px;
+                max-height: 385px; 
 
                 bb-add-asset-button {
                   margin-right: var(--bb-grid-size-2);
@@ -634,6 +626,7 @@ export class Template extends LitElement implements AppTemplate {
                     field-sizing: content;
                     resize: none;
                     background: transparent;
+                    padding: 8px 6px;
                     color: black;
                     font: 400 var(--bb-title-medium) /
                       var(--bb-title-line-height-medium) var(--bb-font-family);
@@ -716,6 +709,7 @@ export class Template extends LitElement implements AppTemplate {
         ? (this.#totalNodeCount - this.#nodesLeftToVisit.size) /
           this.#totalNodeCount
         : 1;
+      // Hide controls
     return html`<div id="controls">
       <button
         id="back"
@@ -776,6 +770,7 @@ export class Template extends LitElement implements AppTemplate {
       currentItem?.type === "edge" &&
       topGraphResult.status === "paused"
     ) {
+      console.log('paused' + topGraphResult.currentNode?.descriptor.metadata?.title);
       // Attempt to find the most recent output. If there is one, show it
       // otherwise show any message that's coming from the edge.
       let lastOutput = null;
@@ -798,6 +793,7 @@ export class Template extends LitElement implements AppTemplate {
       let bubbledValue: HTMLTemplateResult | symbol = nothing;
 
       if (topGraphResult.currentNode?.descriptor.metadata?.title) {
+        console.log('running' + topGraphResult.currentNode.descriptor.metadata.title)
         status = html`<div id="status">
           ${topGraphResult.currentNode.descriptor.metadata.title}
         </div>`;
@@ -948,6 +944,7 @@ export class Template extends LitElement implements AppTemplate {
     let inputContents: HTMLTemplateResult | symbol = nothing;
     let active = false;
     const currentItem = topGraphResult.log.at(-1);
+    console.log( currentItem);
     if (currentItem?.type === "edge") {
       const props = Object.entries(currentItem.schema?.properties ?? {});
       if (this.run && this.run.events.at(-1)?.type === "secret") {
@@ -988,7 +985,8 @@ export class Template extends LitElement implements AppTemplate {
             </md-button>
           </div>
         `;
-      } else if (props.length > 0 && currentItem.descriptor?.type === "input") {
+      } else {
+        console.log(props); 
         active = true;
         const valueIsDefined = currentItem.value !== undefined;
         const valueHasKeys =
@@ -1002,7 +1000,7 @@ export class Template extends LitElement implements AppTemplate {
         inputContents = html`
      
 
-          ${repeat(props, ([name, schema]) => {
+          ${repeat(props.length > 0 ? props : [["", {}]], ([name, schema]) => {
             const dataType = isLLMContentArrayBehavior(schema)
               ? "llm-content-array"
               : isLLMContentBehavior(schema)
@@ -1021,12 +1019,11 @@ export class Template extends LitElement implements AppTemplate {
 
             return html`<div class="user-input">
               <textarea
-                placeholder= ${schema.description ? schema.description : nothing}
+                placeholder= ${schema.description ? schema.description : "Enter a prompt"}
                 name=${name}
                 type="text"
                 data-type=${dataType}
                 .value=${inputValue}
-                ?disabled=${disabled}
               ></textarea>
             </div>`;
           })}
@@ -1038,6 +1035,7 @@ export class Template extends LitElement implements AppTemplate {
             .showGDrive=${this.showGDrive}
             ?disabled=${disabled}
           ></bb-add-asset-button>
+          <div class="actions-gap" style="flex:1;"></div>
             <button
               id="continue"
               ?disabled=${disabled}
@@ -1049,11 +1047,14 @@ export class Template extends LitElement implements AppTemplate {
             </button>
           </div>
         `;
-      } else {
-        active = true;
-        inputContents = placeholder;
-      }
+      } 
+      // else {
+      //   console.log('DONE=====')
+      //   active = true;
+      //   inputContents = placeholder;
+      // }
     } else {
+      console.log('DONE33333=====')
       inputContents = placeholder;
     }
 
