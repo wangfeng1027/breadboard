@@ -44,8 +44,8 @@ export class AppView extends LitElement {
       display: block;
 
       /** Mobile for now */
-      max-width: 420px;
-      max-height: 920px;
+      max-width: 760px;
+      max-height: 90vh;
     }
   `;
 

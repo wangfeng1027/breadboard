@@ -79,6 +79,8 @@ export class DescribeFlowPanel extends LitElement {
         justify-content: center;
         align-items: center;
         margin: 15px 0 0 0;
+        --display-border-container: flex;
+        --display-chips: block;
       }
 
       #feedback {
@@ -95,7 +97,7 @@ export class DescribeFlowPanel extends LitElement {
 
       #gradient-border-container {
         flex: 1;
-        display: flex;
+        display: var(--display-border-container);
         width: 100%;
         background: linear-gradient(0deg, #fdf7f8, #f7f9fe);
         border-radius: 100px;
@@ -133,6 +135,7 @@ export class DescribeFlowPanel extends LitElement {
       }
 
       #chips {
+        display: var(--display-chips);
         margin-top: 20px;
 
         & .bb-chip {
@@ -264,6 +267,8 @@ export class DescribeFlowPanel extends LitElement {
         input.focus();
         this.#onInputChange();
       }
+      this.style.setProperty('--display-border-container', 'none');
+      this.style.setProperty('--display-chips', 'none');
 
     }
   }
