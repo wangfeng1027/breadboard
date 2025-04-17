@@ -22,6 +22,7 @@ type BoardListEntry = {
 async function list(req: Request, res: Response, next: NextFunction) {
   try {
     const store: BoardServerStore = req.app.locals.store;
+    console.log("Store type is:", store.constructor.name);
     const userId = res.locals.userId;
     const boards: StorageBoard[] = await store.listBoards(userId);
 

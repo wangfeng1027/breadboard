@@ -54,7 +54,7 @@ export function serveBoardsAPI(serverConfig: ServerConfig): Router {
   // storage exactly as named. This is the way.
   router.get("/@:user/:name", loadBoard(), getBoard);
   router.delete("/@:user/:name", requireAuth(),deleteBoard);
-
+  
   router.post("/@:user/:name", requireAuth(), parseBoardId(), post);
 
   router.post("/@:user/:name/invoke", parseBoardId(), async (req, res) =>
