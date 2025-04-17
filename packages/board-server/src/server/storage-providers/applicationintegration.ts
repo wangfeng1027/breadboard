@@ -3,8 +3,8 @@ import type { BoardServerStore, ServerInfo, StorageBoard } from "../store.js";
 import { GoogleAuth } from 'google-auth-library';
 
 export const IN_MEMORY_SERVER_INFO: ServerInfo = {
-  title: "In-memory board server",
-  description: "Stores boards in memory",
+  title: "Application Intgegration",
+  description: "Stores boards in Application Integration",
   url: "https://example.com/board-server",
 };
 
