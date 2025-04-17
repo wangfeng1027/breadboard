@@ -51,7 +51,6 @@ export class ApplicationIntegrationStorageProvider implements BoardServerStore {
       if (!accessToken) {
         throw new Error('Failed to fetch Access token, received undefined.');
       }
-      console.log('Successfully fetched Access token:',accessToken);
       return accessToken;
     } catch (error) {
       console.error('Error fetching OAuth Access Token:', error);
@@ -132,21 +131,19 @@ export class ApplicationIntegrationStorageProvider implements BoardServerStore {
 
   async upsertBoard(board: Readonly<StorageBoard>): Promise<StorageBoard> {
     console.log("Application Integration Storage Upsert board");
-    console.log("board config is:", board);
 
-    console.log("List Integration Versions");
+    console.log("Upsert board: First to List Integration Versions");
     // First list to see if board exists
-    console.log("Upsert Board:" ,board.name);
     const integrationVersions = await this.listIntegrationVersions(board.owner, board.name);
     
     // Create board if the board does not exist
     if (integrationVersions.length === 0) {
-      console.log("Create Integration Versions");
+      console.log("Upsert board: Need to create Integration Versions");
       const createdIntegrationVersion =  await this.createIntegrationVersion(board);
       const createdBoard: StorageBoard = this.getBoardConfigFromIntegration(createdIntegrationVersion);
       return createdBoard;
     }
-    console.log("Update existing Integration Versions");
+    console.log("Upsert board: Just update existing Integration Versions");
     // Upsert board if the board exists
     const existingIntegrationVersion = integrationVersions[0];
     const existingBoardConfig = this.getBoardConfigFromIntegration(existingIntegrationVersion);
@@ -189,7 +186,10 @@ export class ApplicationIntegrationStorageProvider implements BoardServerStore {
   }
 
   async createIntegrationVersion(board: Readonly<StorageBoard>): Promise<any> {
-    const url = `https://integrations.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/integrations/${board.owner}-${board.name}/versions`;
+    const integrationName = board.name.endsWith(".bgl.json")
+        ? board.name.slice(0, -".bgl.json".length)
+        : board.name;
+    const url = `https://integrations.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/integrations/${board.owner}-${integrationName}/versions`;
     // Convert the board object to a JSON string
     const boardJsonString = JSON.stringify(board);
     // Escape the JSON string for embedding
@@ -218,9 +218,12 @@ export class ApplicationIntegrationStorageProvider implements BoardServerStore {
       throw new Error("No boards found for path: @" + userId +"/" + boardName);
     }
   
-    const integrationName = userId + "-" + boardName;
+    var integrationName = boardName.endsWith(".bgl.json")
+        ? boardName.slice(0, -".bgl.json".length)
+        : boardName;
+    integrationName = userId + "-" + integrationName;
+
     const url = `https://integrations.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/integrations/${integrationName}`;
-    console.log("Deelete URL:",url);
     const accessToken = await this.getOAuthAccessToken();
     const response = await fetch(url, {
       method: "DELETE",
@@ -235,6 +238,9 @@ export class ApplicationIntegrationStorageProvider implements BoardServerStore {
 
   private async listIntegrationVersions(userId:string, integrationName: string): Promise<any[]> {
     if (integrationName !== "-"){
+      integrationName = integrationName.endsWith(".bgl.json")
+        ? integrationName.slice(0, -".bgl.json".length)
+        : integrationName;
       integrationName = userId + "-" + integrationName;
     }
     var url = `https://integrations.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/integrations/${integrationName}/versions?filter=description=${userId}`;
@@ -263,7 +269,7 @@ export class ApplicationIntegrationStorageProvider implements BoardServerStore {
       // Extract the integration name from the `name` field
       const match = version.name.match(/integrations\/([^/]+)/);
       if (!match) return;
-  
+
       const integrationName = match[1];
   
       // Compare updateTime and keep the latest version
@@ -288,8 +294,9 @@ export class ApplicationIntegrationStorageProvider implements BoardServerStore {
     if (!boardConfigParam || !boardConfigParam.defaultValue?.stringValue) {
       throw new Error("boardConfig parameter is missing or invalid");
     }
+    const boardJson = JSON.parse(boardConfigParam.defaultValue.stringValue)
     // Parse the JSON string into a StorageBoard object
-    return JSON.parse(boardConfigParam.defaultValue.stringValue);
+    return boardJson;
   }
   
   async loadReanimationState(
