@@ -2,7 +2,7 @@ import { blank, type ReanimationState } from "@google-labs/breadboard";
 import type { BoardServerStore, ServerInfo, StorageBoard } from "../store.js";
 import { GoogleAuth } from 'google-auth-library';
 
-export const IN_MEMORY_SERVER_INFO: ServerInfo = {
+export const APPLICATION_INTEGRATION_SERVER_INFO: ServerInfo = {
   title: "Application Intgegration",
   description: "Stores boards in Application Integration",
   url: "https://example.com/board-server",
@@ -22,7 +22,7 @@ export class ApplicationIntegrationStorageProvider implements BoardServerStore {
   #boards: Record<string, StorageBoard> = {};
 
   async getServerInfo(): Promise<ServerInfo | null> {
-    return IN_MEMORY_SERVER_INFO;
+    return APPLICATION_INTEGRATION_SERVER_INFO;
   }
 
   async createUser(userId: string, apiKey: string): Promise<void> {
