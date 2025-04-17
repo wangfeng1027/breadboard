@@ -197,6 +197,7 @@ export class Template extends LitElement implements AppTemplate {
         & #content {
           display: flex;
           flex-direction: column;
+          justify-content: space-between;
           width: 100%;
           max-height: 100svh;
           overflow-x: hidden;
@@ -405,6 +406,8 @@ export class Template extends LitElement implements AppTemplate {
             flex-direction: column;
             // padding: var(--bb-grid-size-3);
             color: var(--text-color);
+            scollbar-width: none;
+            max-height: 85%;
 
 
             & bb-multi-output {
@@ -577,17 +580,16 @@ export class Template extends LitElement implements AppTemplate {
             }
 
             &.paused,
-            &.running,
-            &.finished  {
+            &.finished {
               width: 100%;
 
               & #input-container {
                 padding: 6px;
                 transition: transform 0.6s cubic-bezier(0, 0, 0.3, 1);
-                // transform: translateY(100%);
+                transform: translateY(0);
                 color: black;
                 width: 100%;
-                // display: flex;
+                display: flex;
                 border: 1px solid #0b57d0;
                 border-radius: 24px;
                 
@@ -687,6 +689,10 @@ export class Template extends LitElement implements AppTemplate {
               &.active.paused #input-container {
                 transform: translateY(0);
               }
+            }
+            
+            &.running {
+              display: none;
             }
           }
         }
@@ -950,8 +956,9 @@ export class Template extends LitElement implements AppTemplate {
         const secretEvent = this.run.events.at(-1) as InspectableRunSecretEvent;
 
         active = true;
+        // TODO: figure out what we should do for these secrets and remove display:none.
         inputContents = html`
-          <div class="user-input">
+          <div class="user-input" style="display:none;">
             <p class="api-message">
               When calling an API, the API provider's applicable privacy policy
               and terms apply
@@ -974,14 +981,13 @@ export class Template extends LitElement implements AppTemplate {
             })}
           </div>
           <div class="controls">
-            <md-button
+            <button
               id="continue"
               @click=${() => {
                 continueRun(currentItem.id ?? "unknown");
               }}
             >
-              <md-icon>send</md-icon>
-            </md-button>
+            </button>
           </div>
         `;
       // } else if (props.length > 0 && currentItem.descriptor?.type === "input") {
@@ -1057,6 +1063,8 @@ export class Template extends LitElement implements AppTemplate {
 
     let status: "stopped" | "paused" | "running" | "finished" =
       topGraphResult.status;
+
+    console.log('The status is:', status);
 
     if (topGraphResult.status === "stopped" && topGraphResult.log.length > 0) {
       status = "finished";
@@ -1264,7 +1272,6 @@ export class Template extends LitElement implements AppTemplate {
     this.#totalNodeCount === 0
       ? splashScreen
       : [
-          this.#renderControls(this.topGraphResult),
           this.#renderActivity(this.topGraphResult),
           this.#renderInput(this.topGraphResult),
           addAssetModal,
@@ -1287,5 +1294,14 @@ export class Template extends LitElement implements AppTemplate {
     >
       <div id="content">${content}</div>
     </section>`;
+  }
+
+  firstUpdated() {
+    const queryString = window.location.search;
+    const urlParams = new URLSearchParams(queryString);
+    const skipStart = urlParams.get('start') ?? '';
+    if (skipStart === 'true') {
+      this.dispatchEvent(new RunEvent());
+    }
   }
 }
