@@ -38,14 +38,14 @@ export class MultiOutput extends LitElement {
     }
 
     .output {
-      margin-bottom: var(--output-margin-bottom, 0);
+      // margin-bottom: var(--output-margin-bottom, 0);
 
       .value {
         display: flex;
         flex-direction: column;
         position: relative;
 
-        margin: 0 var(--output-value-margin-x, var(--bb-grid-size-3));
+        // margin: 0 var(--output-value-margin-x, var(--bb-grid-size-3));
         font: var(--font-style, normal) var(--bb-body-medium) /
           var(--bb-body-line-height-medium)
           var(--font-family, var(--bb-font-family));

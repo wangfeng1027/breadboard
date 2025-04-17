@@ -89,9 +89,10 @@ export class LLMOutput extends LitElement {
     :host {
       display: block;
       position: relative;
-      border: var(--output-border-width, 2px) solid
-        var(--output-border-color, var(--bb-neutral-300));
-      border-radius: var(--output-border-radius, var(--bb-grid-size));
+      border: none;
+      // border: var(--output-border-width, 2px) solid
+      //   var(--output-border-color, var(--bb-neutral-300));
+      // border-radius: var(--output-border-radius, var(--bb-grid-size));
       margin-bottom: var(--bb-grid-size-2);
       background: var(--output-background-color, transparent);
     }
@@ -108,7 +109,7 @@ export class LLMOutput extends LitElement {
     }
 
     :host([lite]) {
-      border: 1px solid var(--output-lite-border-color, var(--bb-neutral-100));
+      // border: 1px solid var(--output-lite-border-color, var(--bb-neutral-100));
       background: var(--output-lite-background-color, var(--bb-neutral-0));
     }
 
@@ -135,7 +136,9 @@ export class LLMOutput extends LitElement {
         var(--bb-font-family);
       color: var(--bb-neutral-900);
 
-      padding: var(--output-value-padding-y, 0) var(--output-value-padding-x, 0);
+      // padding: var(--output-value-padding-y, 0) var(--output-value-padding-x, 0);
+      padding-block: var(--output-value-padding-y, 0);
+
 
       white-space: normal;
       border-radius: initial;
