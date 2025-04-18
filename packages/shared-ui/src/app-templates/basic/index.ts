@@ -149,7 +149,7 @@ export class Template extends LitElement implements AppTemplate {
 
       @scope (.app-template) {
         :scope {
-          --font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+          --font-family: "Google Sans", roboto, sans-serif;
           --font-style: normal;
 
           /**
@@ -396,6 +396,10 @@ export class Template extends LitElement implements AppTemplate {
               height: 20px;
               background: transparent;
             }
+          }
+
+          & #introduce {
+            padding-top: 8px;
           }
 
           & #activity {
@@ -753,6 +757,12 @@ export class Template extends LitElement implements AppTemplate {
         Viewing data from an earlier step. Newer data is available.
       </div>
     </div>`;
+  }
+
+  #renderIntroduction() {
+    let introduction: HTMLTemplateResult;
+     introduction = html `<p id="introduce">Hello, this is ${this.graph?.title} and this is what I can do: ${this.graph?.description}</p>`;
+     return introduction;
   }
 
   #renderActivity(topGraphResult: TopGraphRunResult) {
@@ -1272,6 +1282,7 @@ export class Template extends LitElement implements AppTemplate {
     this.#totalNodeCount === 0
       ? splashScreen
       : [
+          this.#renderIntroduction(),
           this.#renderActivity(this.topGraphResult),
           this.#renderInput(this.topGraphResult),
           addAssetModal,
@@ -1300,7 +1311,7 @@ export class Template extends LitElement implements AppTemplate {
     const queryString = window.location.search;
     const urlParams = new URLSearchParams(queryString);
     const skipStart = urlParams.get('start') ?? '';
-    if (skipStart === 'true') {
+    if (skipStart === 'true' && this.state === "anonymous" || this.state === "valid") {
       this.dispatchEvent(new RunEvent());
     }
   }

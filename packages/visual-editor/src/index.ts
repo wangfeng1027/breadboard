@@ -1528,7 +1528,8 @@ export class Main extends LitElement {
 
     this.#setBoardPendingSaveState(false);
     this.#persistBoardServerAndLocation(boardServerName, location);
-
+    
+    this.#sendMessageToParentPage(graph.url);
     this.#attemptBoardLoad(
       new BreadboardUI.Events.StartEvent(url.href, undefined, creator)
     );
@@ -2247,6 +2248,11 @@ export class Main extends LitElement {
       });
     }
     return list;
+  }
+
+  #sendMessageToParentPage(url: string | undefined) {
+    const messageToSend = {type:"FLOW_GENERATED", id: url};
+    window.parent.postMessage(JSON.stringify(messageToSend), 'https://b2607f8b048001000003684baac1c2bf615380000000f60fffe8700.proxy.googlers.com/');
   }
 
   #prepareAgentsapceAdjustion() {
