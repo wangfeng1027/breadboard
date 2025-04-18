@@ -9,7 +9,7 @@ import { LanguagePackEntry } from "../../types/types";
 export default {
   // Commands.
   COMMAND_NEW_PROJECT: {
-    str: "Start from blank canvas",
+    str: "Create New",
   },
   COMMAND_DESCRIBE_FLOW: {
     str: "Describe your flow",
@@ -26,14 +26,14 @@ export default {
   COMMAND_RENEW_ACCESS: {
     str: "Renew Access",
   },
-  COMMAND_GET_STARTED: {
-    str: "Add a new Flow to get started",
-  },
   COMMAND_PREVIOUS: {
     str: "Previous",
   },
   COMMAND_NEXT: {
     str: "Next",
+  },
+  COMMAND_REMIX: {
+    str: "Remix",
   },
 
   // Statuses.
@@ -45,26 +45,23 @@ export default {
   LABEL_SORT_BY: {
     str: "Sort by",
   },
+  LABEL_TEAM_NAME: {
+    str: "Breadboard Team",
+  },
   LABEL_WELCOME_MESSAGE_A: {
-    str: "Make a",
+    str: "Breadboards",
   },
   LABEL_WELCOME_MESSAGE_B: {
-    str: "Flow",
+    str: "are mini AI apps anyone can build",
   },
   LABEL_WELCOME_CTA: {
-    str: "Describe what you want to build or remix from the gallery",
-  },
-  LABEL_PLACEHOLDER_DESCRIPTION: {
-    str: "Describe what you want to make in 1-2 sentences",
+    str: "Describe what you want to build",
   },
   LABEL_FEATURED_GUIDES: {
     str: "Guides and Tutorials",
   },
   LABEL_PROJECT_SERVER_SETTINGS: {
     str: "Flow Server Settings",
-  },
-  LABEL_LIST_OTHERS_PROJECTS: {
-    str: "List others' Flows",
   },
   LABEL_NO_VERSION: {
     str: "(no version)",
@@ -91,7 +88,7 @@ export default {
     str: "Owner",
   },
   LABEL_TABLE_DESCRIPTION_YOUR_PROJECTS: {
-    str: "Your Flow",
+    str: "Your Flows",
   },
   LABEL_TABLE_DESCRIPTION_OTHER_PEOPLES_PROJECTS: {
     str: "Other people's Flows",
@@ -108,6 +105,9 @@ export default {
   LABEL_SEARCH_BOARDS: {
     str: "Search Flows",
   },
+  LABEL_SUGGEST_AN_EDIT: {
+    str: "Suggest an edit",
+  },
   LABEL_GENERATING_FLOW: {
     str: "Generating your flow ...",
   },
@@ -115,7 +115,7 @@ export default {
     str: "Your flow will open automatically when ready",
   },
   LABEL_SAMPLE_GALLERY_TITLE: {
-    str: "Sample gallery",
+    str: "Gallery",
   },
   LABEL_SAMPLE_GALLERY_DESCRIPTION: {
     str: "Get inspired by exploring some sample flows and apps",

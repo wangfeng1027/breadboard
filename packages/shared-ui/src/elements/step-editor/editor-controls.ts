@@ -201,6 +201,14 @@ export class EditorControls extends LitElement {
           &.combine-outputs::before {
             background-image: var(--bb-icon-table-rows);
           }
+
+          &.display::before {
+            background-image: var(--bb-icon-responsive-layout);
+          }
+
+          &.ask-user::before {
+            background-image: var(--bb-icon-chat-mirror);
+          }
         }
       }
 
@@ -256,7 +264,7 @@ export class EditorControls extends LitElement {
 
     #shelf {
       position: absolute;
-      bottom: var(--bb-grid-size-5);
+      bottom: 28px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -819,11 +827,16 @@ export class EditorControls extends LitElement {
     </div>`;
 
     const shelf = html`<div id="shelf">
-      <bb-describe-edit-button
-        popoverPosition="above"
-        .label=${Strings.from("COMMAND_DESCRIBE_EDIT_FLOW")}
+      <bb-flowgen-editor-input
         .currentGraph=${this.graph.raw()}
-      ></bb-describe-edit-button>
+        @pointerdown=${(event: PointerEvent) => {
+          // TODO(aomarks) <bb-renderer> listens for pointerdown and steals
+          // focus, making it impossible to interact with this element unless we
+          // mask the event. Probably this shelf shouldn't even be within the
+          // renderer?
+          event.stopPropagation();
+        }}
+      ></bb-flowgen-editor-input>
     </div>`;
 
     let componentPicker: HTMLTemplateResult | symbol = nothing;

@@ -634,14 +634,18 @@ export class GraphBoardServerDeleteRequestEvent extends Event {
   }
 }
 
+export class GraphBoardServerRemixRequestEvent extends Event {
+  static eventName = "bbgraphboardserverremixrequest";
+
+  constructor(public readonly url: string) {
+    super(GraphBoardServerRemixRequestEvent.eventName, { ...eventInit });
+  }
+}
+
 export class GraphBoardServerLoadRequestEvent extends Event {
   static eventName = "bbgraphboardserverloadrequest";
 
-  constructor(
-    public readonly boardServerName: string,
-    public readonly url: string,
-    public readonly newTab = false
-  ) {
+  constructor(public readonly url: string) {
     super(GraphBoardServerLoadRequestEvent.eventName, { ...eventInit });
   }
 }

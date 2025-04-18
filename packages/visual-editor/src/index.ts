@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { GoogleDriveBoardServer } from "@breadboard-ai/google-drive-kit";
+
 import * as BreadboardUI from "@breadboard-ai/shared-ui";
 const Strings = BreadboardUI.Strings.forSection("Global");
 
@@ -32,11 +34,12 @@ import {
   createFileSystem,
   createEphemeralBlobStore,
   assetsFromGraphDescriptor,
-  blank,
+  blank as breadboardBlank,
   isInlineData,
   isStoredData,
   EditHistoryCreator,
   envFromGraphDescriptor,
+  FileSystem,
 } from "@google-labs/breadboard";
 import {
   createFileSystemBackend,
@@ -92,6 +95,8 @@ import { SideBoardRuntime } from "@breadboard-ai/shared-ui/sideboards/types.js";
 import { OverflowAction } from "@breadboard-ai/shared-ui/types/types.js";
 import { MAIN_BOARD_ID } from "@breadboard-ai/shared-ui/constants/constants.js";
 import { createA2Server } from "@breadboard-ai/a2";
+import { envFromSettings } from "./utils/env-from-settings";
+import { getGoogleDriveBoardService } from "@breadboard-ai/board-server-management";
 
 const STORAGE_PREFIX = "bb-main";
 const LOADING_TIMEOUT = 250;
@@ -330,9 +335,7 @@ export class Main extends LitElement {
   #isSaving = false;
   #graphStore!: MutableGraphStore;
   #runStore = getRunStore();
-  #fileSystem = createFileSystem({
-    local: createFileSystemBackend(createEphemeralBlobStore()),
-  });
+  #fileSystem!: FileSystem;
   #selectionState: WorkspaceSelectionStateWithChangeId | null = null;
   #lastVisualChangeId: WorkspaceVisualChangeId | null = null;
   #lastPointerPosition = { x: 0, y: 0 };
@@ -543,6 +546,10 @@ export class Main extends LitElement {
         return this.#settings?.restore();
       })
       .then(() => {
+        this.#fileSystem = createFileSystem({
+          env: envFromSettings(this.#settings),
+          local: createFileSystemBackend(createEphemeralBlobStore()),
+        });
         return Runtime.create({
           graphStore: this.#graphStore,
           runStore: this.#runStore,
@@ -862,9 +869,29 @@ export class Main extends LitElement {
 
         return this.#runtime.board.createTabsFromURL(currentUrl);
       })
-      .then(() => {
+      .then(async () => {
         if (!config.boardServerUrl) {
           return;
+        }
+
+        // Check if we're signed in and return early if not: we're just
+        // showing a sign-in screen, no need to continue with initialization.
+        const signInAdapter = new SigninAdapter(
+          this.tokenVendor,
+          this.environment,
+          this.settingsHelper
+        );
+        if (signInAdapter.state === "signedout") {
+          return;
+        }
+
+        if (
+          config.boardServerUrl.protocol === GoogleDriveBoardServer.PROTOCOL
+        ) {
+          const gdrive = await getGoogleDriveBoardService();
+          if (gdrive) {
+            config.boardServerUrl = new URL(gdrive.url);
+          }
         }
 
         let hasMountedBoardServer = false;
@@ -1334,7 +1361,7 @@ export class Main extends LitElement {
           graphStore: this.#graphStore,
           fileSystem: this.#fileSystem.createRunFileSystem({
             graphUrl: url,
-            env: envFromGraphDescriptor(graph),
+            env: envFromGraphDescriptor(this.#fileSystem.env(), graph),
             assets: assetsFromGraphDescriptor(graph),
           }),
           inputs: BreadboardUI.Data.inputsFromSettings(this.#settings),
@@ -1356,7 +1383,9 @@ export class Main extends LitElement {
 
     abortController.abort(Strings.from("STATUS_GENERIC_RUN_STOPPED"));
     const runner = this.#runtime.run.getRunner(tabId);
-    await runner?.run();
+    if (runner?.running()) {
+      await runner?.run();
+    }
 
     if (clearLastRun) {
       await this.#runtime.run.clearLastRun(tabId, this.tab?.graph.url);
@@ -1589,6 +1618,12 @@ export class Main extends LitElement {
     }
 
     this.boardServerNavState = globalThis.crypto.randomUUID();
+  }
+
+  async #attemptRemix(graph: GraphDescriptor, creator: EditHistoryCreator) {
+    const remixedGraph = { ...graph, title: `${graph.title} Remix` };
+
+    return this.#attemptBoardCreate(remixedGraph, creator);
   }
 
   async #attemptBoardCreate(
@@ -3223,7 +3258,13 @@ export class Main extends LitElement {
                 this.#runtime.board.closeTab(this.tab.id);
               }}
                   ?disabled=${this.tab === null}>
-                ${Strings.from("APP_NAME")}
+                ${
+                  this.showWelcomePanel
+                    ? html`<span class="product-name"
+                        >${Strings.from("APP_NAME")}</span
+                      >`
+                    : nothing
+                }
               </button>
 
               ${
@@ -3289,6 +3330,36 @@ export class Main extends LitElement {
                             ${selectedItem}
                           </button>`
                         : nothing}
+                      <button
+                        id="remix"
+                        @pointerover=${(evt: PointerEvent) => {
+                          this.dispatchEvent(
+                            new BreadboardUI.Events.ShowTooltipEvent(
+                              Strings.from("COMMAND_REMIX"),
+                              evt.clientX,
+                              evt.clientY
+                            )
+                          );
+                        }}
+                        @pointerout=${() => {
+                          this.dispatchEvent(
+                            new BreadboardUI.Events.HideTooltipEvent()
+                          );
+                        }}
+                        @click=${(evt: PointerEvent) => {
+                          if (!(evt.target instanceof HTMLButtonElement)) {
+                            return;
+                          }
+
+                          if (!this.tab?.graph) {
+                            return;
+                          }
+
+                          this.#attemptRemix(this.tab.graph, { role: "user" });
+                        }}
+                      >
+                        Remix
+                      </button>
                       <button
                         id="toggle-overflow-menu"
                         @pointerover=${(evt: PointerEvent) => {
@@ -4199,6 +4270,18 @@ export class Main extends LitElement {
                     new BreadboardUI.Events.StartEvent(evt.url)
                   );
                 }}
+                @bbgraphboardserverremixrequest=${async (
+                  evt: BreadboardUI.Events.GraphBoardServerRemixRequestEvent
+                ) => {
+                  const graphStore = this.#runtime.board.getGraphStore();
+                  const addResult = graphStore.addByURL(evt.url, [], {});
+                  const graph = (await graphStore.getLatest(addResult.mutable))
+                    .graph;
+                  if (graph) {
+                    await this.#attemptRemix(graph, { role: "user" });
+                    this.showWelcomePanel = false;
+                  }
+                }}
                 @bbgraphboardserverdeleterequest=${async (
                   evt: BreadboardUI.Events.GraphBoardServerDeleteRequestEvent
                 ) => {
@@ -4360,4 +4443,10 @@ export class Main extends LitElement {
     const tooltip = html`<bb-tooltip ${ref(this.#tooltipRef)}></bb-tooltip>`;
     return [until(uiController), tooltip, toasts];
   }
+}
+
+function blank() {
+  const blankBoard = breadboardBlank();
+  const title = Strings.from("TITLE_UNTITLED_PROJECT") || blankBoard.title;
+  return { ...breadboardBlank(), title };
 }

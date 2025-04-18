@@ -226,16 +226,20 @@ export const styles = css`
       height: 100%;
 
       & #logo {
-        font-size: 0;
+        color: #404041;
+        font-family: var(--bb-font-family);
+        font-size: 20px;
+        font-weight: 500;
         border: none;
         width: 24px;
         height: 24px;
         margin: 0 var(--bb-grid-size-4);
-        background: var(--bb-logo) center center / 24px 24px no-repeat;
+        background: var(--bb-logo) left center / 24px 24px no-repeat;
         padding: 0;
-        display: flex;
-        align-items: center;
-        position: relative;
+
+        & > .product-name {
+          padding-left: 40px;
+        }
 
         &:not([disabled]) {
           cursor: pointer;
@@ -481,4 +485,29 @@ export const styles = css`
   bb-settings-edit-overlay {
     position: fixed;
   }
+
+  #remix {
+    height: var(--bb-grid-size-7);
+    padding: 0 var(--bb-grid-size-4) 0 var(--bb-grid-size-9);
+    border-radius: var(--bb-grid-size-16);
+    margin: 0 var(--bb-grid-size-2) 0 0;
+    background: var(--bb-neutral-0);
+    cursor: pointer;
+
+    color: #004a77;
+    font: 500 var(--bb-title-small) / var(--bb-title-line-height-small)
+      var(--bb-font-family);
+    display: flex;
+    align-items: center;
+    border-radius: 100px;
+    border: none;
+    transition: background 0.2s cubic-bezier(0, 0, 0.3, 1);
+    cursor: pointer;
+
+    background: var(--bb-icon-remix) var(--bb-grid-size-3) center / 18px 18px no-repeat #c2e7ff;
+
+    &:hover,
+    &:focus {
+      background-color: #96d6ff;
+    }
 `;

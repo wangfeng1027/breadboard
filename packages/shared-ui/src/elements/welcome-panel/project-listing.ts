@@ -23,7 +23,7 @@ import { until } from "lit/directives/until.js";
 import { BoardServer, GraphProviderStore } from "@google-labs/breadboard";
 import { createRef, ref, Ref } from "lit/directives/ref.js";
 import { styleMap } from "lit/directives/style-map.js";
-import "../../flow-gen/describe-flow-panel.js";
+import "../../flow-gen/flowgen-homepage-panel.js";
 import "./homepage-search-button.js";
 import type { HomepageSearchButton } from "./homepage-search-button.js";
 import { icons } from "../../styles/icons.js";
@@ -34,10 +34,9 @@ import {
 } from "../../contexts/agentspace-url-context.js";
 import { consume } from "@lit/context";
 
-const SHOW_OTHER_PEOPLES_BOARDS_KEY =
-  "bb-project-listing-show-other-peoples-boards";
 const MODE_KEY = "bb-project-listing-mode";
 const OVERFLOW_MENU_CLEARANCE = 4;
+const FORCE_NO_BOARDS = new URL(document.URL).searchParams.has("forceNoBoards");
 
 @customElement("bb-project-listing")
 export class ProjectListing extends LitElement {
@@ -67,9 +66,6 @@ export class ProjectListing extends LitElement {
 
   @state()
   accessor filter: string | null = null;
-
-  @state()
-  accessor showOtherPeoplesBoards = false;
 
   @state()
   accessor showBoardServerOverflowMenu = false;
@@ -144,7 +140,7 @@ export class ProjectListing extends LitElement {
             }
           }
 
-          & bb-describe-flow-panel {
+          & bb-flowgen-homepage-panel {
             width: 100%;
             max-width: 976px;
           }
@@ -154,8 +150,7 @@ export class ProjectListing extends LitElement {
           margin-top: 24px;
         }
 
-        & #loading-message,
-        & #no-projects {
+        & #loading-message {
           color: var(--bb-neutral-700);
           font: 400 var(--bb-body-medium) / var(--bb-body-line-height-medium)
             var(--bb-font-family);
@@ -164,6 +159,20 @@ export class ProjectListing extends LitElement {
 
           & p {
             margin: 0 0 var(--bb-grid-size) 0;
+          }
+        }
+
+        & #no-projects-panel {
+          background: #f8fafd;
+          border-radius: var(--bb-grid-size-6);
+          padding: 34px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          p {
+            color: var(--bb-neutral-700);
+            font: 400 var(--bb-body-medium) / var(--bb-body-line-height-medium)
+              var(--bb-font-family);
           }
         }
 
@@ -241,29 +250,6 @@ export class ProjectListing extends LitElement {
         & #new-project-container {
           display: flex;
           justify-content: center;
-
-          & #new-project {
-            color: #004a77;
-            background-color: #c2e7ff;
-            font: 500 var(--bb-title-small) / var(--bb-title-line-height-small)
-              var(--bb-font-family);
-            display: flex;
-            align-items: center;
-            border-radius: 100px;
-            border: none;
-            padding: 6px 12px;
-            transition: background 0.2s cubic-bezier(0, 0, 0.3, 1);
-            cursor: pointer;
-
-            & > .g-icon {
-              margin-right: 4px;
-            }
-
-            &:hover,
-            &:focus {
-              background-color: #96d6ff;
-            }
-          }
         }
 
         & #location-selector-container {
@@ -397,6 +383,29 @@ export class ProjectListing extends LitElement {
           "GRAD" 0,
           "opsz" 48;
       }
+
+      #create-new-button {
+        color: #004a77;
+        background-color: #c2e7ff;
+        font: 500 var(--bb-title-small) / var(--bb-title-line-height-small)
+          var(--bb-font-family);
+        display: flex;
+        align-items: center;
+        border-radius: 100px;
+        border: none;
+        padding: 6px 12px;
+        transition: background 0.2s cubic-bezier(0, 0, 0.3, 1);
+        cursor: pointer;
+
+        & > .g-icon {
+          margin-right: 4px;
+        }
+
+        &:hover,
+        &:focus {
+          background-color: #96d6ff;
+        }
+      }
     `,
   ];
 
@@ -413,9 +422,6 @@ export class ProjectListing extends LitElement {
 
     this.addEventListener("click", this.#hideBoardServerOverflowMenuBound);
 
-    this.showOtherPeoplesBoards =
-      this.showAdditionalSources &&
-      globalThis.localStorage.getItem(SHOW_OTHER_PEOPLES_BOARDS_KEY) === "true";
     this.#attemptFocus = true;
 
     this.mode =
@@ -437,7 +443,6 @@ export class ProjectListing extends LitElement {
           boardServers: BoardServer[];
           selectedBoardServer: string;
           selectedLocation: string;
-          showOtherPeoplesBoards: boolean;
           mode: boolean;
           filter: string | null;
         }>
@@ -459,7 +464,6 @@ export class ProjectListing extends LitElement {
       changedProperties.has("boardServers") ||
       changedProperties.has("selectedLocation") ||
       changedProperties.has("selectedBoardServer") ||
-      changedProperties.has("showOtherPeoplesBoards") ||
       changedProperties.has("filter") ||
       changedProperties.has("mode")
     ) {
@@ -655,11 +659,6 @@ export class ProjectListing extends LitElement {
     this.#searchRef.value.select();
   }
 
-  #toggleMode() {
-    this.mode = this.mode === "condensed" ? "detailed" : "condensed";
-    globalThis.localStorage.setItem(MODE_KEY, this.mode);
-  }
-
   #createUrl(boardServer: string, location: string) {
     return `${boardServer}::${location}`;
   }
@@ -668,18 +667,23 @@ export class ProjectListing extends LitElement {
     return url.split("::");
   }
 
-  #getCurrentStoreName(url: string) {
-    for (const boardServer of this.boardServers) {
-      for (const [location, store] of boardServer.items()) {
-        const value = `${boardServer.name}::${store.url ?? location}`;
+  #getCurrentStoreName(_url: string) {
+    // For now, simply return a fixed title string, like "Your flows",
+    // instead of getting the title from the server.
+    // TODO: Figure out what the right thing to do is here.
+    return Strings.from("LABEL_TABLE_DESCRIPTION_YOUR_PROJECTS");
 
-        if (value === url) {
-          return store.title;
-        }
-      }
-    }
+    // for (const boardServer of this.boardServers) {
+    //   for (const [location, store] of boardServer.items()) {
+    //     const value = `${boardServer.name}::${store.url ?? location}`;
 
-    return "Unknown Store";
+    //     if (value === url) {
+    //       return store.title;
+    //     }
+    //   }
+    // }
+
+    // return "Unknown Store";
   }
 
   render() {
@@ -704,7 +708,7 @@ export class ProjectListing extends LitElement {
 
     return html` <div id="wrapper" ${ref(this.#wrapperRef)}>
         <section id="hero">
-          <bb-describe-flow-panel></bb-describe-flow-panel>
+           <bb-flowgen-homepage-panel></bb-flowgen-homepage-panel>
         </section>
 
         <div id="board-listing" style="${this.agentspaceFlowContent.isIframe? "display:none":""}">
@@ -783,28 +787,8 @@ export class ProjectListing extends LitElement {
                     >
                       ${Strings.from("LABEL_PROJECT_SERVER_SETTINGS")}
                     </button>
-
-                    <div id="list-other-peoples-boards-container">
-                      <input
-                        id="list-other-peoples-boards"
-                        type="checkbox"
-                        ?checked=${this.showOtherPeoplesBoards}
-                        @click=${(evt: Event) => {
-                          if (!(evt.target instanceof HTMLInputElement)) {
-                            return;
-                          }
-
-                          this.showOtherPeoplesBoards = evt.target.checked;
-                          globalThis.localStorage.setItem(
-                            SHOW_OTHER_PEOPLES_BOARDS_KEY,
-                            `${this.showOtherPeoplesBoards}`
-                          );
-                        }}
-                      /><label for="list-other-peoples-boards"
-                        >${Strings.from("LABEL_LIST_OTHERS_PROJECTS")}</label
-                      >
                     </div>`
-                : html`<h2 id="location-selector">
+                : html`<h2 id="location-selector" class="gallery-title">
                     ${this.#getCurrentStoreName(selected)}
                   </h2>`}
             </div>
@@ -874,27 +858,24 @@ export class ProjectListing extends LitElement {
 
                     return 0;
                   });
-                const myItems = allItems.filter(
-                  ([, item]) => this.showOtherPeoplesBoards || item.mine
-                );
+                const myItems = allItems.filter(([, item]) => item.mine);
                 const sampleItems = allItems.filter(([, item]) =>
                   (item.tags ?? []).includes("featured")
                 );
                 const boardListings = [
-                  myItems.length
+                  myItems.length && !FORCE_NO_BOARDS
                     ? html`
                         <div class="gallery-wrapper">
                           <bb-gallery
                             .items=${myItems}
-                            .boardServer=${boardServer}
-                            .mode=${this.mode}
+                            .pageSize=${8}
                           ></bb-gallery>
                         </div>
                       `
                     : html`
-                        <div id="no-projects">
+                        <div id="no-projects-panel">
                           <p>${Strings.from("LABEL_NO_PROJECTS_FOUND")}</p>
-                          <p>${Strings.from("COMMAND_GET_STARTED")}</p>
+                          ${this.#renderCreateNewButton()}
                         </div>
                       `,
                   html`
@@ -907,8 +888,7 @@ export class ProjectListing extends LitElement {
                       </p>
                       <bb-gallery
                         .items=${sampleItems}
-                        .boardServer=${boardServer}
-                        .mode=${this.mode}
+                        .pageSize=${/* Unlimited */ -1}
                       ></bb-gallery>
                     </div>
                   `,
@@ -917,45 +897,15 @@ export class ProjectListing extends LitElement {
                 return permission === "granted"
                   ? [
                       boardListings,
-                      html` <div id="buttons">
-                        ${myItems.length
-                          ? html`<div id="mode-container">
-                              <input
-                                ?checked=${this.mode === "condensed"}
-                                type="checkbox"
-                                id="mode"
-                                @input=${() => {
-                                  this.#toggleMode();
-                                }}
-                              />
-                              <label for="mode"
-                                ><span class="detailed"></span
-                                ><span class="condensed"></span>
-                                <span class="sort-by-icon"></span
-                                >${Strings.from("LABEL_SORT_BY")}</label
-                              >
-                            </div>`
-                          : nothing}
-                        <div id="new-project-container">
-                          <button
-                            id="new-project"
-                            @click=${(evt: Event) => {
-                              if (!(evt.target instanceof HTMLButtonElement)) {
-                                return;
-                              }
-
-                              evt.target.disabled = true;
-
-                              this.dispatchEvent(
-                                new GraphBoardServerBlankBoardEvent()
-                              );
-                            }}
-                          >
-                            <span class="g-icon">add</span>
-                            ${Strings.from("COMMAND_NEW_PROJECT")}
-                          </button>
-                        </div>
-                      </div>`,
+                      myItems.length && !FORCE_NO_BOARDS
+                        ? html`
+                            <div id="buttons">
+                              <div id="create-new-button-container">
+                                ${this.#renderCreateNewButton()}
+                              </div>
+                            </div>
+                          `
+                        : nothing,
                     ]
                   : html`<div id="renew-access">
                       <span
@@ -1042,5 +992,22 @@ export class ProjectListing extends LitElement {
           </div>`
         : nothing}
 `;
+  }
+
+  #renderCreateNewButton() {
+    return html`
+      <button id="create-new-button" @click=${this.#clickNewProjectButton}>
+        <span class="g-icon">add</span>
+        ${Strings.from("COMMAND_NEW_PROJECT")}
+      </button>
+    `;
+  }
+
+  #clickNewProjectButton(evt: Event) {
+    if (!(evt.target instanceof HTMLButtonElement)) {
+      return;
+    }
+    evt.target.disabled = true;
+    this.dispatchEvent(new GraphBoardServerBlankBoardEvent());
   }
 }
