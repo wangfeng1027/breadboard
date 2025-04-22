@@ -1154,6 +1154,12 @@ export class Template extends LitElement implements AppTemplate {
                 type="text"
                 data-type=${dataType}
                 .value=${inputValue}
+                @keydown=${(e: KeyboardEvent) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    continueRun(currentItem.id ?? "unknown");
+                  }
+                }}
               ></textarea>
             </div>`;
           })}
