@@ -57,6 +57,7 @@ import "../../elements/input/add-asset/add-asset-modal.js";
 import "../../elements/input/add-asset/asset-shelf.js";
 import "../../elements/input/speech-to-text/speech-to-text.js";
 import "../../elements/input/drawable/drawable.js";
+import "./generating-loader/generating-loader.js";
 
 import "../../elements/output/llm-output/llm-output-array.js";
 import "../../elements/output/llm-output/export-toolbar.js";
@@ -143,6 +144,15 @@ export class Template extends LitElement implements AppTemplate {
         display: block;
         width: 100%;
         height: 100%;
+        --color-on-surface: black;
+        --color-background: white;
+        --color-bubble-wrapper: #e9eef6
+      }
+
+      :host([dark-theme]) {
+        --color-on-surface: white;
+        --color-background: #201f21;
+        --color-bubble-wrapper: #282a2c
       }
 
       /** Fonts */
@@ -171,6 +181,97 @@ export class Template extends LitElement implements AppTemplate {
           --font-style: italic;
         }
       }
+
+      /**
+       * The gradient for greeting message.
+      */
+      @mixin gemini-gradient(
+        $gradient-direction: to right,
+        $pos1: 0%,
+        $pos2: 33%,
+        $pos3: 66%,
+        $pos4: 100%
+      ) {
+        background: linear-gradient(
+          $gradient-direction,
+          #217bfe $pos1,
+          #078efb $pos2,
+          #ac87eb $pos3,
+          #ee4d5d $pos4
+        );
+      }
+
+      @mixin dark-gemini-gradient(
+        $gradient-direction: to right,
+        $pos1: 0%,
+        $pos2: 33%,
+        $pos3: 66%,
+        $pos4: 100%
+      ) {
+        background: linear-gradient(
+          $gradient-direction,
+          #2e64de $pos1,
+          #3c8fe3 $pos2,
+          #987be9 $pos3,
+          #be6eae $pos4
+        );
+      }
+
+      @mixin light-gemini-gradient(
+        $gradient-direction: to right,
+        $pos1-1: 6.02%,
+        $pos1-2: 51.92%,
+        $pos1-3: 96.44%,
+        $pos2-1: 0%,
+        $pos2-2: 49%,
+        $pos2-3: 97.82%
+      ) {
+        background: linear-gradient(
+            $gradient-direction,
+            #d7e6ff $pos1-1,
+            #c7e4ff $pos1-2,
+            #dce2ff $pos1-3
+          ),
+          linear-gradient(
+            $gradient-direction,
+            #446eff $pos2-1,
+            #2e96ff $pos2-2,
+            #acb7fc $pos2-3
+          );
+      }
+
+      @mixin spark-icon {
+        @include gemini-gradient();
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        --md-icon-font: 'Google Symbols';
+      }
+
+
+       /**
+       * The styling for bubble & user question.
+       */
+
+       .question-wrapper {
+        flex-direction: initial;
+        max-width: 400px;
+        box-sizing: border-box;
+        min-height: 32px;
+        display: inline-flex;
+        align-items: center;
+        background: var(--color-bubble-wrapper);
+        padding: 16px;
+        border-radius: 26px 4px 26px 26px;
+
+        .question-bubble {
+          background: none;
+          padding: 0;
+          border-radius: 0;
+          color: var(--color-on-surface);
+          @include mixins.body-large();
+        }
+      }
+
 
       /** General styles */
 
@@ -400,6 +501,15 @@ export class Template extends LitElement implements AppTemplate {
 
           & #introduce {
             padding-top: 8px;
+          }
+          
+          & .generating-icon {
+            color: #3367d6;
+            @include spark-icon();
+          }
+
+          & .generating {
+            animation: rotate 2s linear infinite;
           }
 
           & #activity {
@@ -707,7 +817,6 @@ export class Template extends LitElement implements AppTemplate {
   ];
 
   #inputRef: Ref<HTMLDivElement> = createRef();
-  #splashRef: Ref<HTMLDivElement> = createRef();
   #assetShelfRef: Ref<AssetShelf> = createRef();
 
   #renderControls(topGraphResult: TopGraphRunResult) {
@@ -761,7 +870,13 @@ export class Template extends LitElement implements AppTemplate {
 
   #renderIntroduction() {
     let introduction: HTMLTemplateResult;
-     introduction = html `<p id="introduce">Hello, this is ${this.graph?.title} and this is what I can do: ${this.graph?.description}</p>`;
+     introduction = html `
+      <p id="introduce">Hello, this is ${this.graph?.title} and this is what I can do: ${this.graph?.description}</p>
+     
+     <div class="question-wrapper" style="display:none"
+      <p class="question-bubble">This is a demo to use question bubble.</p>
+     </div>
+     `;
      return introduction;
   }
 

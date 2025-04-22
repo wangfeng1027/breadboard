@@ -16,6 +16,10 @@
       "default": "./dist/app-templates/basic/index.js",
       "types": "./dist/app-templates/basic/index.d.ts"
     },
+    "./app-templates/basic/generating-loader": {
+      "default": "./dist/app-templates/basic/generating-loader/generating-loader.js",
+      "types": "./dist/app-templates/basic/generating-loader/generating-loader.d.ts"
+    },
     "./utils/signin-adapter": {
       "default": "./dist/utils/signin-adapter.js",
       "types": "./dist/utils/signin-adapter.d.ts"
@@ -124,7 +128,8 @@
     "vite": "^6.2.6",
     "vite-plugin-full-reload": "^1.2.0",
     "vite-plugin-watch-and-run": "^1.7.4",
-    "vitest": "^3.1.1"
+    "vitest": "^3.1.1",
+    "sass": "^1.86.3"
   },
   "dependencies": {
     "@breadboard-ai/build": "0.12.1",
