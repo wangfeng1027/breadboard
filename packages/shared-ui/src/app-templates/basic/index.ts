@@ -22,6 +22,7 @@ import Mode from "../shared/styles/icons.js";
 import Animations from "../shared/styles/animations.js";
 import AppTemplatesStyle from "./index-style.js";
 import ThemeStyle from "./theme-style";
+import "./generating-loader/generating-loader.js";
 
 import { classMap } from "lit/directives/class-map.js";
 import {
@@ -231,11 +232,11 @@ export class Template extends LitElement implements AppTemplate {
       let status: HTMLTemplateResult | symbol = nothing;
       let bubbledValue: HTMLTemplateResult | symbol = nothing;
 
-      if (topGraphResult.currentNode?.descriptor.metadata?.title) {
-        status = html`<div id="status">
-          ${topGraphResult.currentNode.descriptor.metadata.title}
-        </div>`;
-      }
+      // if (topGraphResult.currentNode?.descriptor.metadata?.title) {
+      //   status = html`<div id="status">
+      //     ${topGraphResult.currentNode.descriptor.metadata.title} 
+      //   </div>`;
+      // }
 
       let idx = 0;
       let lastOutput: EdgeLogEntry | null = null;
@@ -299,13 +300,23 @@ export class Template extends LitElement implements AppTemplate {
       }
 
       if (lastOutput !== null) {
-        activityContents = html`<bb-multi-output
+        activityContents = html`
+        <bb-multi-output
           .outputs=${lastOutput.value ?? null}
         ></bb-multi-output>`;
       }
     }
 
-    return html`<div id="activity">${activityContents}</div>`;
+    return html`
+    <div id="activity">
+      ${topGraphResult.status === 'running'
+        ? html`<generating-loader
+            .currentText=${topGraphResult.currentNode?.descriptor?.metadata?.title}
+          ></generating-loader>`
+        : nothing}
+      ${activityContents}
+    </div>
+  `;
   }
 
   #toLLMContentWithTextPart(text: string): NodeValue {

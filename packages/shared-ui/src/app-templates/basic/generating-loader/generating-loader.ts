@@ -35,7 +35,7 @@ export class GeneratingLoader extends LitElement {
     return this.customText$.value;
   }
 
-  @property() accessor currentText = 'Generating...';
+  @property() accessor currentText = 'Generating';
 
   @state() accessor isFadingIn = false;
 
@@ -57,7 +57,7 @@ export class GeneratingLoader extends LitElement {
               'fade-in': this.isFadingIn,
               'fade-out': this.isFadingOut,
             })}"
-            >${this.currentText}</span
+            >${this.currentText}...</span
           >
         </div>
         <span class="first-line skeleton-loader"></span>

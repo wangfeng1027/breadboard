@@ -512,7 +512,8 @@ export default  css`
       }
 
       &.paused,
-      &.finished {
+      &.finished,
+      &.running {
         width: 100%;
 
         & #input-container {
@@ -530,6 +531,7 @@ export default  css`
           max-height: 385px; 
 
           bb-add-asset-button {
+            display: none;
             margin-right: var(--bb-grid-size-2);
           }
 
@@ -577,7 +579,8 @@ export default  css`
           }
 
           & .controls {
-            margin-left: var(--bb-grid-size-2);
+            // margin-left: var(--bb-grid-size-2);
+            margin-left: auto;
             display: flex;
             align-items: flex-end;
 
@@ -624,7 +627,7 @@ export default  css`
       }
       
       &.running {
-        display: none;
+        // display: none;
       }
     }
   }
