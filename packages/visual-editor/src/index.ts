@@ -1557,7 +1557,7 @@ export class Main extends LitElement {
 
     this.#setBoardPendingSaveState(false);
     this.#persistBoardServerAndLocation(boardServerName, location);
-    
+
     this.#sendMessageToParentPage(graph.url);
     this.#attemptBoardLoad(
       new BreadboardUI.Events.StartEvent(url.href, undefined, creator)
@@ -2297,6 +2297,7 @@ export class Main extends LitElement {
     const flowName = urlParams.get('name') ?? '';
     const iframe = urlParams.get('iframe');
     const flowGoal = urlParams.get('goal') ?? '';
+    const parentOrigin = urlParams.get('parentOrigin') ?? '';
     const isInsideAgentspaceIframe = !!iframe;
     if (isInsideAgentspaceIframe) {
       this.style.setProperty('--header-height', '0');
@@ -2308,6 +2309,7 @@ export class Main extends LitElement {
       agentInstructions: instructions,
       agentGoal: flowGoal,
       isIframe: isInsideAgentspaceIframe,
+      parentOrigin,
     }
   }
 
@@ -3245,7 +3247,7 @@ export class Main extends LitElement {
           }
         }
 
-        
+
 
         const ui = html`<header>
           <div id="header-bar" data-active=${this.tab ? "true" : nothing} ?inert=${showingOverlay}>

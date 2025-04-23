@@ -7,6 +7,7 @@ export interface AgentspaceFlowContent {
     agentInstructions: string;
     agentGoal: string;
     isIframe: boolean;
+    parentOrigin: string;
 }
 
 // Url context
