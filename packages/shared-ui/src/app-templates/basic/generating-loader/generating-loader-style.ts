@@ -1,6 +1,6 @@
 import {css} from 'lit';
 
-export const generatingLoaderStyle = css `
+export default css `
 
     @use 'sass:color';
     @use 'sass:math';
@@ -10,54 +10,53 @@ export const generatingLoaderStyle = css `
     @include mixins.magi-element;
 
     :host {
-    --_skeleton-gradient1: #{$magi-primary-light};
-    --_skeleton-gradient2: #{$magi-primary};
+    --_skeleton-gradient1: #{var(--magi-primary-light)};
+    --_skeleton-gradient2: #{var(--magi-primary)};
     background: none;
 
     }
 
     :host([spk2]) {
-    --_skeleton-gradient1: #{$color-surface-container-high};
-    --_skeleton-gradient2: #{$color-primary};
+    --_skeleton-gradient1: #{var(--color-surface-container-high)};
+    --_skeleton-gradient2: #{var(--color-primary)};
 
     .main {
         background: none;
     }
 
     .text-container {
-        color: $color-outline;
+        color: var(--color-outline);
     }
     }
 
     .main {
-    background: linear-gradient(
-        180deg,
-        rgba(244, 246, 251, 1) 0%,
-        rgba(255, 255, 255, 1) 100%
-      );
+        background: linear-gradient(
+            180deg,
+            rgba(244, 246, 251, 1) 0%,
+            rgba(255, 255, 255, 1) 100%
+        );
     }
 
     .skeleton-loader {
-    height: 18px;
-    display: block;
-    background: linear-gradient(
-        to right,
-        var(--_skeleton-gradient1),
-        var(--_skeleton-gradient2),
-        var(--_skeleton-gradient1)
-        ),
-        var(--_skeleton-gradient1);
-    border-radius: 100px;
-    background-repeat: repeat-y;
-    background-size: 100px 200px;
-    background-position: -50px 0;
-    animation: var(--_skeleton-animation, move-forward 1s infinite);
-    margin-top: 16px;
+        height: 18px;
+        display: block;
+        background: linear-gradient(
+            to right,
+            var(--_skeleton-gradient1),
+            var(--_skeleton-gradient2),
+            var(--_skeleton-gradient1)
+            ),
+            var(--_skeleton-gradient1);
+        border-radius: 100px;
+        background-repeat: repeat-y;
+        background-size: 100px 200px;
+        background-position: -50px 0;
+        animation: var(--_skeleton-animation, move-forward 1s infinite);
+        margin-top: 16px;
     }
 
     .text-container {
-    color: $vais-grey-600;
-    @include mixins.ellipsify($widget-width);
+        color: var(--vais-grey-600);
     }
 
     .text-container.fade-in {
@@ -71,48 +70,44 @@ export const generatingLoaderStyle = css `
     // Add more .text-fading classes as needed
 
     @keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-    to {
-        opacity: 1;
-    }
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
     }
 
     @keyframes fadeOut {
-    from {
-        opacity: 1;
-    }
-    to {
-        opacity: 0;
-    }
+        from {
+            opacity: 1;
+        }
+        to {
+            opacity: 0;
+        }
     }
 
     @keyframes move-forward {
-    to {
-        background-position: 100% 0;
-    }
+        to {
+            background-position: 100% 0;
+        }
     }
 
     @keyframes rotate {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
+        from {
+            transform: rotate(0deg);
+        }
+        to {
+            transform: rotate(360deg);
+        }
     }
 
     .first-line.skeleton-loader {
-    width: min($widget-width, 100%);
+        width: min(var(--widget-width), 100%);
     }
 
     .second-line.skeleton-loader {
-    width: min(
-        $widget-width * $second-bar-ratio,
-        math.percentage($second-bar-ratio)
-    );
+        width: var(--widget-width) * $second-bar-ratio;
     }
-
 
 `;

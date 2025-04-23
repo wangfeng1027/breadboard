@@ -1,11 +1,16 @@
-import {CSSResultGroup, html, LitElement} from 'lit';
+/**
+ * @license
+ * Copyright 2025 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */
+import {CSSResultGroup, html, LitElement, css} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
 import {classMap} from 'lit/directives/class-map.js';
 
 import {BehaviorSubject, Observable, Subject, merge, of, timer} from 'rxjs';
 import {concatMap, filter, takeUntil, takeWhile} from 'rxjs/operators';
-import {generatingLoaderStyle} from './generating-loader-style.js';
-import {themeStyle} from '../theme-style.js';
+import GeneratingLoaderStyle from './generating-loader-style.js';
+import ThemeStyle from '../theme-style.js';
 
 
 /** Duration of the fade in or fade out animation. */
@@ -20,7 +25,7 @@ const STATUS_DISPLAY_DURATION_MS_CHAT_UX = 1000;
 /** Displaying a skeleton loader when waiting for the search result. */
 @customElement('generating-loader')
 export class GeneratingLoader extends LitElement {
-  static styles = [themeStyle, generatingLoaderStyle];
+  static styles = [ThemeStyle, GeneratingLoaderStyle];
 
   @property()
   set customText(value: string | undefined) {
@@ -42,11 +47,11 @@ export class GeneratingLoader extends LitElement {
     undefined,
   );
 
-  override render() {
+  render() {
+    console.log('rendering..');
     return html`
       <div class="main">
         <div class="header">
-        !!!!
            <span
             class="text-container ${classMap({
               'fade-in': this.isFadingIn,
@@ -61,10 +66,9 @@ export class GeneratingLoader extends LitElement {
     `;
   }
 
-  override connectedCallback() {
-
+  connectedCallback() {
+    super.connectedCallback();
     const customTextNonEmpty$ = this.customText$.pipe(filter(Boolean));
-
 
      customTextNonEmpty$
       .pipe(takeUntil(this.disconnected$))
