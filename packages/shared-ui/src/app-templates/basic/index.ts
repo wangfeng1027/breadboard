@@ -11,7 +11,7 @@ import {
   nothing,
   HTMLTemplateResult,
 } from "lit";
-import { customElement, property, state } from "lit/decorators.js";
+import { customElement, property, state, query, queryAll} from "lit/decorators.js";
 import {
   AppTemplate,
   AppTemplateOptions,
@@ -126,6 +126,14 @@ export class Template extends LitElement implements AppTemplate {
   accessor showAddAssetModal = false;
   #addAssetType: string | null = null;
 
+  @query('.conversations')
+  accessor conversationScroller!: HTMLElement;
+
+  @queryAll('.question-wrapper')
+  accessor userInputs!: NodeList;
+
+  #resizeObserver? : ResizeObserver;
+
   get additionalOptions() {
     return {
       font: {
@@ -184,7 +192,7 @@ export class Template extends LitElement implements AppTemplate {
   }
 
   #renderIntroduction(fixedReply: string | undefined) {
-    return html `<div class="summary">${fixedReply}</div>`;
+    return html `<div class="summary introduction">${fixedReply}</div>`;
   }
 
   #renderActivity(topGraphResult: TopGraphRunResult) {
@@ -309,11 +317,6 @@ export class Template extends LitElement implements AppTemplate {
 
     return html`
     <div id="activity">
-      ${topGraphResult.status === 'running'
-        ? html`<generating-loader
-            .currentText=${topGraphResult.currentNode?.descriptor?.metadata?.title}
-          ></generating-loader>`
-        : nothing}
       ${activityContents}
     </div>
   `;
@@ -328,21 +331,24 @@ export class Template extends LitElement implements AppTemplate {
     return html`
     <div class="conversations">
     ${this.#renderIntro()}
-    ${repeat(logs, (logEntry)=>{
+    ${repeat(logs, (logEntry, index)=>{
         if(logEntry.schema) {
           //This means there is a user input lets fetch both the question and reply
           const props = Object.keys(logEntry.schema?.properties ?? {});
+          const lastLog = index === (logs.length - 1);
           return html`
-            ${repeat(props, (propKey)=>{
+            ${repeat(props, (propKey, index)=>{
               const flowquery = logEntry.schema?.properties?.[propKey].description;
               const userResponse = logEntry.value?.[propKey];
-
+              const lastPropKey = index === (props.length - 1);
+              // console.log(`Going to render: ${lastLog}, ${lastPropKey}, ${index}`);
+              // console.log(logs);
               return html`
-              <div class="turn">
+              <div class="turn ${classMap({
+                'last': lastLog && lastPropKey && topGraphResult.status !== 'running'})}">
               ${this.#renderUserInputLabel(flowquery)}
               ${userResponse && this.#renderUserInput(userResponse)}
-              
-            </div>
+              </div>
               `
 
             })}
@@ -350,10 +356,17 @@ export class Template extends LitElement implements AppTemplate {
         }
        })
     }
+    ${topGraphResult.status === 'running'
+      ? html`
+      <div class="turn last loader">
+        <generating-loader
+            .currentText=${topGraphResult.currentNode?.descriptor?.metadata?.title}
+          ></generating-loader>
+      </div>
+          `
+      : nothing}
     </div>
     `
-
-
   }
 
   #renderUserInput(input: NodeValue) {
@@ -384,6 +397,40 @@ export class Template extends LitElement implements AppTemplate {
     const intro = `Hello, this is ${this.graph?.title} and this is what I can do: ${this.graph?.description}`
     return this.#renderIntroduction(intro);
 
+}
+
+
+#scrollToLatestUserQuery(behavior: ScrollBehavior = 'smooth') {
+  const calculatedTop =  this.conversationScroller.scrollHeight -
+      this.#getLastTurnHeight() - 10;
+  this.conversationScroller?.scrollTo({
+    top: calculatedTop,
+    behavior,
+  });
+}
+
+#getLastTurnHeight() {
+  return this.renderRoot.querySelector('.turn.last')?.clientHeight ?? 0;
+}
+
+#getLastUserInputHeight() {
+  const nodes = this.renderRoot.querySelectorAll('.question-block');
+  if (!!nodes && nodes.length > 0) {
+    const lastNode = nodes.item(nodes.length - 1);
+    return lastNode.clientHeight;
+  }
+  return  0;
+}
+
+#calculateChatHeightAndPropagateItToConversation() {
+  if (!this.conversationScroller) return;
+  const height = this.conversationScroller.clientHeight;
+  const introductionHeight = this.renderRoot.querySelector('.introduction')?.clientHeight ?? 0;
+  const userInputHeight = this.#getLastUserInputHeight();
+  this.conversationScroller.style.setProperty(
+    '--conversation-client-height',
+    `${height - (userInputHeight === 0? introductionHeight : userInputHeight) - 40 - /* small padding to avoid parasitic scrollbar */ 3}px`,
+  );
 }
 
   #renderInput(topGraphResult: TopGraphRunResult) {
@@ -454,10 +501,10 @@ export class Template extends LitElement implements AppTemplate {
       this.dispatchEvent(
         new InputEnterEvent(id, inputValues, /* allowSavingIfSecret */ true)
       );
-      // Push user input into turns;
-      if (!!stringInput) {
-        this.#turns.push({query: stringInput});
-      }
+      setTimeout(() => {
+          this.#scrollToLatestUserQuery();
+        }
+      );
     };
 
     let inputContents: HTMLTemplateResult | symbol = nothing;
@@ -583,7 +630,6 @@ export class Template extends LitElement implements AppTemplate {
     let status: "stopped" | "paused" | "running" | "finished" =
       topGraphResult.status;
 
-    console.log('The status is:', status);
 
     if (topGraphResult.status === "stopped" && topGraphResult.log.length > 0) {
       status = "finished";
@@ -829,7 +875,7 @@ export class Template extends LitElement implements AppTemplate {
       ? splashScreen
       : [
           this.#renderLog(this.topGraphResult),
-          this.#renderActivity(this.topGraphResult),
+          // this.#renderActivity(this.topGraphResult),
           this.#renderInput(this.topGraphResult),
           addAssetModal,
         ]}`;
@@ -865,6 +911,18 @@ export class Template extends LitElement implements AppTemplate {
     if (skipStart === 'true' && this.state === "anonymous" || this.state === "valid") {
       this.dispatchEvent(new RunEvent());
     }
+  }
+
+  updated() {
+    this.#calculateChatHeightAndPropagateItToConversation();
+  }
+
+  connectedCallback(): void {
+    super.connectedCallback();
+    this.#resizeObserver = new ResizeObserver(() => {
+      this.#calculateChatHeightAndPropagateItToConversation();
+    })
+    this.#resizeObserver.observe(this);
   }
 }
 

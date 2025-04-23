@@ -147,12 +147,20 @@ export default  css`
       overflow-y: auto;
       scrollbar-gutter: stable;
       scrollbar-width: thin;
+      flex: 1;
 
       .turn {
         .summary {
           padding-top: 24px;
           padding-bottom: 40px;
         }
+      }
+      .turn.last {
+        min-height: var(--conversation-client-height, 0);
+      }
+      .turn.last.loader {
+        padding-top: 24px;
+        padding-bottom: 40px;
       }
 
     }
