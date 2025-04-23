@@ -602,6 +602,7 @@ export class Template extends LitElement implements AppTemplate {
                 max-height: 385px; 
 
                 bb-add-asset-button {
+                  display: none;
                   margin-right: var(--bb-grid-size-2);
                 }
 
