@@ -20,6 +20,8 @@ import {
 } from "../../types/types";
 import Mode from "../shared/styles/icons.js";
 import Animations from "../shared/styles/animations.js";
+import AppTemplatesStyle from "./index-style.js";
+import ThemeStyle from "./theme-style";
 
 import { classMap } from "lit/directives/class-map.js";
 import {
@@ -43,6 +45,7 @@ import {
   StopEvent,
   UtteranceEvent,
 } from "../../events/events";
+import { when} from "lit/directives/when.js";
 import { repeat } from "lit/directives/repeat.js";
 import { createRef, ref, Ref } from "lit/directives/ref.js";
 import { NodeValue, OutputValues } from "@breadboard-ai/types";
@@ -57,6 +60,8 @@ import "../../elements/input/add-asset/add-asset-modal.js";
 import "../../elements/input/add-asset/asset-shelf.js";
 import "../../elements/input/speech-to-text/speech-to-text.js";
 import "../../elements/input/drawable/drawable.js";
+import './summary/summary.js';
+
 
 import "../../elements/output/llm-output/llm-output-array.js";
 import "../../elements/output/llm-output/export-toolbar.js";
@@ -64,6 +69,12 @@ import "../../elements/output/llm-output/llm-output.js";
 import "../../elements/output/multi-output/multi-output.js";
 import { map } from "lit/directives/map.js";
 import { markdown } from "../../directives/markdown";
+
+interface Turn {
+  query?: string;
+  reply? : TopGraphRunResult;
+  fixedReply?: string;
+}
 
 @customElement("app-basic")
 export class Template extends LitElement implements AppTemplate {
@@ -134,595 +145,22 @@ export class Template extends LitElement implements AppTemplate {
   }
 
   static styles = [
-    css`
-      * {
-        box-sizing: border-box;
-      }
-
-      :host {
-        display: block;
-        width: 100%;
-        height: 100%;
-      }
-
-      /** Fonts */
-
-      @scope (.app-template) {
-        :scope {
-          --font-family: "Google Sans", roboto, sans-serif;
-          --font-style: normal;
-
-          /**
-           * Added so that any fixed position overlays are relative to this
-           * scope rather than any containing document.
-           */
-          transform: translateX(0);
-        }
-      }
-
-      @scope (.app-template.font-serif) {
-        :scope {
-          --font-family: serif;
-        }
-      }
-
-      @scope (.app-template.fontStyle-italic) {
-        :scope {
-          --font-style: italic;
-        }
-      }
-
-      /** General styles */
-
-      :host([hasrenderedsplash]) {
-        @scope (.app-template) {
-          & #content {
-            & #splash {
-              animation: none;
-            }
-          }
-        }
-      }
-
-      @scope (.app-template) {
-        :scope {
-          background: var(--background-color);
-          color: var(--text-color);
-          display: flex;
-          width: 100%;
-          height: 100%;
-          margin: 0;
-        }
-
-        & #content {
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-          width: 100%;
-          max-height: 100svh;
-          overflow-x: hidden;
-          overflow-y: scroll;
-          flex: 1;
-          scrollbar-width: none;
-          position: relative;
-
-          &::before {
-            content: "";
-            width: 100svw;
-          }
-
-          &:has(.loading) {
-            align-items: center;
-            justify-content: center;
-            background: var(--background-color);
-          }
-
-          .loading {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 100svw;
-            height: 100svh;
-
-            & .loading-message {
-              display: flex;
-              align-items: center;
-              height: var(--bb-grid-size-8);
-              padding-left: var(--bb-grid-size-8);
-              background: var(--bb-progress) 4px center / 20px 20px no-repeat;
-            }
-          }
-
-          #preview-step-not-run {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            flex: 1;
-            animation: fadeIn 1s cubic-bezier(0, 0, 0.3, 1);
-            padding: 0 var(--bb-grid-size-8);
-            font: 400 var(--font-style, normal) var(--bb-title-medium) /
-              var(--bb-title-line-height-medium)
-              var(--font-family, var(--bb-font-family));
-            color: var(--text-color, var(--bb-neutral-900));
-
-            & h1 {
-              font: 500 var(--font-style, normal) var(--bb-title-large) /
-                var(--bb-title-line-height-large)
-                var(--font-family, var(--bb-font-family));
-              color: var(--primary-color, var(--bb-neutral-900));
-              margin: 0 0 var(--bb-grid-size) 0;
-            }
-
-            & p {
-              color: var(--text-color, var(--bb-neutral-700));
-              margin: 0 0 var(--bb-grid-size-2) 0;
-            }
-          }
-
-          & #splash {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            flex: 1;
-            animation: fadeIn 1s cubic-bezier(0, 0, 0.3, 1);
-
-            // &::before {
-            //   content: "";
-            //   width: 100%;
-            //   flex: 1;
-            //   background: var(--splash-image, url(/images/app/generic-flow.jpg))
-            //     center center / cover no-repeat;
-            //   mask-image: linear-gradient(
-            //     to bottom,
-            //     rgba(255, 0, 255, 1) 0%,
-            //     rgba(255, 0, 255, 1) 70%,
-            //     rgba(255, 0, 255, 0.75) 80%,
-            //     rgba(255, 0, 255, 0.4) 90%,
-            //     rgba(255, 0, 255, 0) 100%
-            //   );
-            // }
-
-            & h1 {
-              background: var(--background-color, none);
-              border-radius: var(--bb-grid-size-2);
-              font: 500 var(--font-style) 32px / 42px var(--font-family);
-              color: var(--primary-color, var(--bb-neutral-700));
-              margin: 0 0 var(--bb-grid-size-3);
-              flex: 0 0 auto;
-              max-width: 80%;
-              width: max-content;
-              text-align: center;
-            }
-
-            & p {
-              flex: 0 0 auto;
-              font: 400 var(--font-style) var(--bb-body-large) /
-                var(--bb-body-line-height-large) var(--font-family);
-              color: var(--secondary-color, var(--bb-neutral-700));
-              margin: 0 0 var(--bb-grid-size-3);
-
-              max-width: 65%;
-              width: max-content;
-              text-align: center;
-            }
-          }
-
-          & #controls {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            height: 76px;
-            border-bottom: 1px solid var(--secondary-color, var(--bb-neutral-0));
-            padding: 0 var(--bb-grid-size-4);
-            position: relative;
-
-            #older-data {
-              position: absolute;
-              width: max-content;
-              max-width: 70%;
-              text-align: center;
-              left: 50%;
-              top: 50%;
-              user-select: none;
-              transform: translate(-50%, -50%);
-              padding: var(--bb-grid-size-2) var(--bb-grid-size-3);
-              font: 400 var(--bb-body-small) / var(--bb-body-line-height-small)
-                var(--bb-font-family);
-              background: var(--bb-ui-50);
-              color: var(--bb-ui-800);
-              border-radius: var(--bb-grid-size-2);
-              opacity: 0;
-              transition: opacity 0.2s cubic-bezier(0, 0, 0.3, 1);
-
-              &.active {
-                opacity: 1;
-              }
-            }
-
-            #progress {
-              width: 100px;
-              height: 4px;
-              background: var(--secondary-color);
-              border-radius: var(--bb-grid-size-16);
-              position: relative;
-
-              &::before {
-                content: "";
-                position: absolute;
-                top: 0;
-                left: 0;
-                width: calc(var(--percentage) * 100%);
-                max-width: 100%;
-                height: 4px;
-                background: var(--primary-color);
-                border-radius: var(--bb-grid-size-16);
-                transition: width 0.3s cubic-bezier(0, 0, 0.3, 1);
-              }
-            }
-
-            button {
-              width: 20px;
-              height: 20px;
-              background: transparent;
-              border: none;
-              font-size: 0;
-              opacity: 0.6;
-              transition: opacity 0.3s cubic-bezier(0, 0, 0.3, 1);
-
-              &#back {
-                background: var(--bb-icon-arrow-back) center center / 20px 20px
-                  no-repeat;
-              }
-
-              &#share {
-                background: var(--bb-icon-share) center center / 20px 20px
-                  no-repeat;
-              }
-
-              &:not([disabled]) {
-                cursor: pointer;
-
-                &:hover,
-                &:focus {
-                  opacity: 1;
-                }
-              }
-            }
-
-            div#share {
-              width: 20px;
-              height: 20px;
-              background: transparent;
-            }
-          }
-
-          & #introduce {
-            padding-top: 8px;
-          }
-
-          & #activity {
-            flex: 1;
-            overflow: auto;
-
-            display: flex;
-            flex-direction: column;
-            // padding: var(--bb-grid-size-3);
-            color: var(--text-color);
-            scollbar-width: none;
-            max-height: 85%;
-
-
-            & bb-multi-output {
-              --output-value-padding-x: var(--bb-grid-size-4);
-              --output-value-padding-y: var(--bb-grid-size-4);
-              --output-border-radius: var(--bb-grid-size-4);
-              --output-font: 400 var(--font-style, normal)
-                var(--bb-title-large) / var(--bb-title-line-height-large)
-                var(--font-family, var(--bb-font-family));
-              --output-string-width: 95%;
-              --output-string-margin-bottom-y: var(--bb-grid-size-3);
-              --output-margin-bottom: var(--bb-grid-size-4);
-              --output-background-color: var(--bb-neutral-0);
-              --multi-output-value-padding-x: 0;
-              flex: 1 0 auto;
-
-              animation: fadeIn 0.6s cubic-bezier(0, 0, 0.3, 1) forwards;
-            }
-
-            & .error {
-              flex: 1 0 auto;
-              display: flex;
-              flex-direction: column;
-              width: 80%;
-              margin: 0 auto;
-
-              & summary {
-                list-style: none;
-                cursor: pointer;
-
-                & h1 {
-                  margin: 0 0 var(--bb-grid-size-2) 0;
-                  font: 400 var(--bb-title-large) /
-                    var(--bb-title-line-height-large) var(--bb-font-family);
-                  color: var(--primary-color);
-                }
-
-                & p {
-                  font: 400 var(--bb-label-medium) /
-                    var(--bb-label-line-height-medium) var(--bb-font-family);
-                  margin: 0;
-                  color: oklch(
-                    from var(--text-color) l c h / calc(alpha - 0.6)
-                  );
-                }
-              }
-
-              & p {
-                margin: var(--bb-grid-size-4) 0 var(--bb-grid-size-2) 0;
-                font: 400 var(--bb-title-medium) /
-                  var(--bb-title-line-height-medium) var(--bb-font-family);
-                color: var(--secondary-color);
-              }
-
-              &::-webkit-details-marker {
-                display: none;
-              }
-            }
-
-            & .thought {
-              font: 400 var(--font-style, normal) var(--bb-title-medium) /
-                var(--bb-title-line-height-medium)
-                var(--font-family, var(--bb-font-family));
-              color: var(--text-color, var(--bb-neutral-900));
-              margin: 0 var(--bb-grid-size-3)
-                var(--output-string-margin-bottom-y, var(--bb-grid-size-2))
-                var(--bb-grid-size-3);
-              padding: 0 var(--bb-grid-size-3);
-              opacity: 0;
-              animation: fadeIn 0.6s cubic-bezier(0, 0, 0.3, 1) 0.05s forwards;
-
-              & p {
-                margin: 0 0 var(--bb-grid-size-2) 0;
-              }
-
-              & h1 {
-                font: 500 var(--font-style, normal) var(--bb-title-small) /
-                  var(--bb-title-line-height-small)
-                  var(--font-family, var(--bb-font-family));
-                color: var(--primary-color, var(--bb-neutral-900));
-                margin: 0 0 var(--bb-grid-size-2) 0;
-              }
-
-              &.generative h1 {
-                padding-left: var(--bb-grid-size-7);
-                background: var(--bb-icon-generative) 0 center / 20px 20px
-                  no-repeat;
-              }
-            }
-
-            & #status {
-              position: absolute;
-              display: flex;
-              align-items: center;
-              bottom: var(--bb-grid-size-6);
-              width: calc(100% - var(--bb-grid-size-12));
-              left: 50%;
-              transform: translateX(-50%);
-              background: var(--bb-progress) var(--primary-color) 16px center /
-                20px 20px no-repeat;
-              color: var(--primary-text-color);
-              padding: var(--bb-grid-size-3) var(--bb-grid-size-4)
-                var(--bb-grid-size-3) var(--bb-grid-size-12);
-              border-radius: var(--bb-grid-size-3);
-              z-index: 1;
-              font: 400 var(--bb-title-medium) /
-                var(--bb-title-line-height-medium) var(--bb-font-family);
-              opacity: 0;
-              animation: fadeIn 0.6s cubic-bezier(0, 0, 0.3, 1) 0.6s forwards;
-
-              &::after {
-                content: "Working";
-                flex: 0 0 auto;
-                margin-left: var(--bb-grid-size-3);
-                color: oklch(
-                  from var(--primary-text-color) l c h / calc(alpha - 0.4)
-                );
-              }
-            }
-          }
-
-          & #input {
-            --user-input-padding-left: 0;
-
-            display: flex;
-            justify-content: center;
-            position: relative;
-
-            background: var(--background-color, var(--bb-neutral-0));
-
-            & #sign-in,
-            & #run {
-              min-width: 76px;
-              height: var(--bb-grid-size-10);
-              background: var(--primary-color, var(--bb-ui-50))
-                var(--bb-icon-generative) 12px center / 16px 16px no-repeat;
-              color: var(--primary-text-color, var(--bb-ui-700));
-              border-radius: 20px;
-              border: 1px solid var(--primary-color, var(--bb-ui-100));
-              font: 400 var(--bb-label-large) /
-                var(--bb-label-line-height-large) var(--bb-font-family);
-              padding: 0 var(--bb-grid-size-5) 0 var(--bb-grid-size-9);
-              opacity: 0.85;
-
-              --transition-properties: opacity;
-              transition: var(--transition);
-
-              &.running {
-                background: var(--bb-ui-500) url(/images/progress-ui.svg) 8px
-                  center / 16px 16px no-repeat;
-              }
-
-              &:not([disabled]) {
-                cursor: pointer;
-
-                &:hover,
-                &:focus {
-                  opacity: 1;
-                }
-              }
-            }
-
-            & #sign-in {
-              background-image: var(--bb-icon-login-inverted);
-            }
-
-            &.stopped {
-              min-height: 100px;
-              padding: var(--bb-grid-size-2) var(--bb-grid-size-3);
-            }
-
-            &.paused,
-            &.finished {
-              width: 100%;
-
-              & #input-container {
-                padding: 6px;
-                transition: transform 0.6s cubic-bezier(0, 0, 0.3, 1);
-                transform: translateY(0);
-                color: black;
-                width: 100%;
-                display: flex;
-                border: 1px solid #0b57d0;
-                border-radius: 24px;
-                
-
-                min-height: 100px;
-                max-height: 385px; 
-
-                bb-add-asset-button {
-                  display: none;
-                  margin-right: var(--bb-grid-size-2);
-                }
-
-                & .user-input {
-                  display: flex;
-                  flex-direction: column;
-                  flex: 1;
-                  overflow: auto;
-             
-                  color: black;
-
-                  & p {
-                    display: flex;
-                    align-items: flex-end;
-                    font: 400 var(--bb-title-medium) /
-                      var(--bb-title-line-height-medium) var(--bb-font-family);
-                    margin: 0 0 var(--bb-grid-size-3) 0;
-                    flex: 1;
-
-                    &.api-message {
-                      font: 400 var(--bb-body-x-small) /
-                        var(--bb-body-line-height-x-small) var(--bb-font-family);
-                    }
-                  }
-
-                  & textarea,
-                  & input[type="password"] {
-                    field-sizing: content;
-                    resize: none;
-                    background: transparent;
-                    padding: 8px 6px;
-                    color: black;
-                    font: 400 var(--bb-title-medium) /
-                      var(--bb-title-line-height-medium) var(--bb-font-family);
-                    border: none;
-                    border-radius: var(--bb-grid-size-2);
-                    outline: none;
-                    width: 100%;
-                    scrollbar-width: none;
-
-                    &::placeholder {
-                      color: #747775
-                    }
-                  }
-                }
-
-                & .controls {
-                  margin-left: var(--bb-grid-size-2);
-                  display: flex;
-                  align-items: flex-end;
-
-                  & #continue {
-                    margin-left: var(--bb-grid-size-2);
-                    // background: oklch(
-                    //     from var(--primary-text-color) l c h /
-                    //       calc(alpha - 0.75)
-                    //   )
-                    //   var(--bb-icon-send) center center / 20px 20px no-repeat;
-                  // background: #f8fafd;
-                  background: #f8fafd var(--bb-icon-send) center center / 20px 20px no-repeat;
-                    color: #747775;
-                    width: 40px;
-                    height: 40px;
-                    font-size: 0;
-                    border: none;
-                    border-radius: 50%;
-
-                    --transition-properties: opacity;
-                    transition: var(--transition);
-
-                    &[disabled] {
-                      cursor: auto;
-                      opacity: 0.5;
-                    }
-
-                    &:not([disabled]) {
-                      cursor: pointer;
-                      // opacity: 0.5;
-
-                      &:hover,
-                      &:focus {
-                        // opacity: 1;
-                        color: #444746;
-                      }
-                    }
-                  }
-                }
-              }
-              &.active.paused #input-container {
-                transform: translateY(0);
-              }
-            }
-            
-            &.running {
-              display: none;
-            }
-          }
-        }
-      }
-    `,
+    ThemeStyle,
+    AppTemplatesStyle,
     Mode,
     Animations,
   ];
 
   #inputRef: Ref<HTMLDivElement> = createRef();
-  #splashRef: Ref<HTMLDivElement> = createRef();
   #assetShelfRef: Ref<AssetShelf> = createRef();
+  #turns: Turn[] = [];
 
   #renderControls(topGraphResult: TopGraphRunResult) {
     if (topGraphResult.currentNode?.descriptor.id) {
       this.#nodesLeftToVisit.delete(topGraphResult.currentNode?.descriptor.id);
     }
 
-    const showShare = "share" in navigator;
-    const percentage =
-      this.#totalNodeCount > 0
-        ? (this.#totalNodeCount - this.#nodesLeftToVisit.size) /
-          this.#totalNodeCount
-        : 1;
-      // Hide controls
+     // Hide controls
     return html`<div id="controls">
       <button
         id="back"
@@ -732,23 +170,7 @@ export class Template extends LitElement implements AppTemplate {
       >
         Back
       </button>
-      <div
-        id="progress"
-        style=${styleMap({ "--percentage": percentage.toFixed(2) })}
-      ></div>
-      ${showShare
-        ? html`<button
-            id="share"
-            @click=${() => {
-              navigator.share({
-                url: this.appURL ?? window.location.href,
-                title: this.options.title ?? "Untitled App",
-              });
-            }}
-          >
-            Share
-          </button>`
-        : html`<div id="share"></div>`}
+
       <div
         id="older-data"
         class=${classMap({
@@ -760,10 +182,8 @@ export class Template extends LitElement implements AppTemplate {
     </div>`;
   }
 
-  #renderIntroduction() {
-    let introduction: HTMLTemplateResult;
-     introduction = html `<p id="introduce">Hello, this is ${this.graph?.title} and this is what I can do: ${this.graph?.description}</p>`;
-     return introduction;
+  #renderIntroduction(fixedReply: string | undefined) {
+    return html `<div class="summary">${fixedReply}</div>`;
   }
 
   #renderActivity(topGraphResult: TopGraphRunResult) {
@@ -807,6 +227,7 @@ export class Template extends LitElement implements AppTemplate {
         ></bb-multi-output>`;
       }
     } else if (topGraphResult.status === "running") {
+      // TODO: move this into conversations.
       let status: HTMLTemplateResult | symbol = nothing;
       let bubbledValue: HTMLTemplateResult | symbol = nothing;
 
@@ -891,6 +312,69 @@ export class Template extends LitElement implements AppTemplate {
     return { role: "user", parts: [{ text }] };
   }
 
+  #renderLog(topGraphResult: TopGraphRunResult) {
+    const logs = topGraphResult.log.filter((logEntry) => logEntry.type === "edge");
+    return html`
+    <div class="conversations">
+    ${this.#renderIntro()}
+    ${repeat(logs, (logEntry)=>{
+        if(logEntry.schema) {
+          //This means there is a user input lets fetch both the question and reply
+          const props = Object.keys(logEntry.schema?.properties ?? {});
+          return html`
+            ${repeat(props, (propKey)=>{
+              const flowquery = logEntry.schema?.properties?.[propKey].description;
+              const userResponse = logEntry.value?.[propKey];
+
+              return html`
+              <div class="turn">
+              ${this.#renderUserInputLabel(flowquery)}
+              ${userResponse && this.#renderUserInput(userResponse)}
+              
+            </div>
+              `
+
+            })}
+          `
+        }
+       })
+    }
+    </div>
+    `
+
+
+  }
+
+  #renderUserInput(input: NodeValue) {
+    if(input && typeof input === 'object' &&  input['parts' as keyof typeof input] ) {
+      return html `
+      <div class="question-block">
+        <div class="question-wrapper">
+          <p class="question-bubble">${input['parts' as keyof typeof input][0]['text']}</p>
+        </div>
+      </div>
+        `;
+    }
+    return html `
+      <div class="question-block">
+        <div class="question-wrapper">
+          <p class="question-bubble">${input}</p>
+        </div>
+      </div>
+        `;
+  }
+
+  #renderUserInputLabel(userInput: string | undefined) {
+    return html `<div class="summary">${userInput}</div>`;
+  }
+
+  #renderIntro() {
+
+    const intro = `Hello, this is ${this.graph?.title} and this is what I can do: ${this.graph?.description}`
+    return this.#renderIntroduction(intro);
+
+}
+
   #renderInput(topGraphResult: TopGraphRunResult) {
     const placeholder = html`<div class="user-input">
         <p>&nbsp;</p>
@@ -902,6 +386,8 @@ export class Template extends LitElement implements AppTemplate {
       if (!this.#inputRef.value) {
         return;
       }
+
+      let stringInput = "";
 
       const inputs = this.#inputRef.value.querySelectorAll<
         HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
@@ -922,6 +408,7 @@ export class Template extends LitElement implements AppTemplate {
             inputValues[input.name] = this.#toLLMContentWithTextPart(
               input.value
             );
+            stringInput = input.value;
           } else if (input.dataset.type === "llm-content-array") {
             inputValues[input.name] = [
               this.#toLLMContentWithTextPart(input.value),
@@ -956,6 +443,10 @@ export class Template extends LitElement implements AppTemplate {
       this.dispatchEvent(
         new InputEnterEvent(id, inputValues, /* allowSavingIfSecret */ true)
       );
+      // Push user input into turns;
+      if (!!stringInput) {
+        this.#turns.push({query: stringInput});
+      }
     };
 
     let inputContents: HTMLTemplateResult | symbol = nothing;
@@ -1103,6 +594,43 @@ export class Template extends LitElement implements AppTemplate {
     >
       <div id="input-container" ${ref(this.#inputRef)}>${inputContents}</div>
     </div>`;
+  }
+
+  #renderConversations() {
+    return html `
+      <div class="conversations">
+        ${map(this.#turns, (turn: Turn) => {
+          return html `
+            <div class="turn ${classMap({
+                'last': turn === this.#turns.at(-1),
+              })}">
+              ${when(turn.query, () => this.#renderQuery(turn.query))}
+              ${when(!!turn.reply, () =>this.#renderSummary(turn.reply))}
+              ${when(turn.fixedReply, () => this.#renderIntroduction(turn.fixedReply))}
+            </div>
+          `;
+        })}
+      </div>
+    `;
+  }
+
+  #renderQuery(query: string | undefined) {
+    return html `
+      <div class="question-block">
+        <div class="question-wrapper">
+          <p class="question-bubble">${query}</p>
+        </div>
+      </div>
+        `;
+  }
+
+  #renderSummary(topGraphResult: TopGraphRunResult | undefined) {
+    if (!!topGraphResult) {
+      const value = topGraphResult.currentNode?.descriptor;
+      return html `<div class="summary">${value}</div>`;
+    } else {
+      return html `<div class="summary">PLACEHOLDER</div>`;
+    }
   }
 
   #totalNodeCount = 0;
@@ -1289,7 +817,7 @@ export class Template extends LitElement implements AppTemplate {
     this.#totalNodeCount === 0
       ? splashScreen
       : [
-          this.#renderIntroduction(),
+          this.#renderLog(this.topGraphResult),
           this.#renderActivity(this.topGraphResult),
           this.#renderInput(this.topGraphResult),
           addAssetModal,
@@ -1313,8 +841,13 @@ export class Template extends LitElement implements AppTemplate {
       <div id="content">${content}</div>
     </section>`;
   }
+  
 
   firstUpdated() {
+    // This is used to skip the start.
+    this.#turns.push({
+      fixedReply: `Hello, this is ${this.graph?.title} and this is what I can do: ${this.graph?.description}`
+    });
     const queryString = window.location.search;
     const urlParams = new URLSearchParams(queryString);
     const skipStart = urlParams.get('start') ?? '';
@@ -1323,3 +856,6 @@ export class Template extends LitElement implements AppTemplate {
     }
   }
 }
+
+
+
