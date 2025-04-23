@@ -91,6 +91,11 @@ export default  css`
       }
   }
 
+  .conversations { 
+    font-size: 16px;
+    font-family: "Google Sans", roboto, sans-serif;
+    line-height: 28px;
+  }
 
 /** General styles */
 

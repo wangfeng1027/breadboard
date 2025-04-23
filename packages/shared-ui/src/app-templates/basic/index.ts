@@ -312,6 +312,69 @@ export class Template extends LitElement implements AppTemplate {
     return { role: "user", parts: [{ text }] };
   }
 
+  #renderLog(topGraphResult: TopGraphRunResult) {
+    const logs = topGraphResult.log.filter((logEntry) => logEntry.type === "edge");
+    return html`
+    <div class="conversations">
+    ${this.#renderIntro()}
+    ${repeat(logs, (logEntry)=>{
+        if(logEntry.schema) {
+          //This means there is a user input lets fetch both the question and reply
+          const props = Object.keys(logEntry.schema?.properties ?? {});
+          return html`
+            ${repeat(props, (propKey)=>{
+              const flowquery = logEntry.schema?.properties?.[propKey].description;
+              const userResponse = logEntry.value?.[propKey];
+
+              return html`
+              <div class="turn">
+              ${this.#renderUserInputLabel(flowquery)}
+              ${userResponse && this.#renderUserInput(userResponse)}
+              
+            </div>
+              `
+
+            })}
+          `
+        }
+       })
+    }
+    </div>
+    `
+
+
+  }
+
+  #renderUserInput(input: NodeValue) {
+    if(input && typeof input === 'object' &&  input['parts' as keyof typeof input] ) {
+      return html `
+      <div class="question-block">
+        <div class="question-wrapper">
+          <p class="question-bubble">${input['parts' as keyof typeof input][0]['text']}</p>
+        </div>
+      </div>
+        `;
+    }
+    return html `
+      <div class="question-block">
+        <div class="question-wrapper">
+          <p class="question-bubble">${input}</p>
+        </div>
+      </div>
+        `;
+  }
+
+  #renderUserInputLabel(userInput: string | undefined) {
+    return html `<div class="summary">${userInput}</div>`;
+  }
+
+  #renderIntro() {
+
+    const intro = `Hello, this is ${this.graph?.title} and this is what I can do: ${this.graph?.description}`
+    return this.#renderIntroduction(intro);
+
+}
+
   #renderInput(topGraphResult: TopGraphRunResult) {
     const placeholder = html`<div class="user-input">
         <p>&nbsp;</p>
@@ -754,7 +817,7 @@ export class Template extends LitElement implements AppTemplate {
     this.#totalNodeCount === 0
       ? splashScreen
       : [
-          this.#renderConversations(),
+          this.#renderLog(this.topGraphResult),
           this.#renderActivity(this.topGraphResult),
           this.#renderInput(this.topGraphResult),
           addAssetModal,
@@ -778,6 +841,7 @@ export class Template extends LitElement implements AppTemplate {
       <div id="content">${content}</div>
     </section>`;
   }
+  
 
   firstUpdated() {
     // This is used to skip the start.
