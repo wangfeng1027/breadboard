@@ -226,7 +226,7 @@ export class Template extends LitElement implements AppTemplate {
       }
     }
 
-    return html`<div id="activity">${outputContents}</div>`;
+    return html`<div id="activity turn last">${outputContents}</div>`;
   }
 
   #renderActivity(topGraphResult: TopGraphRunResult) {
@@ -922,7 +922,6 @@ export class Template extends LitElement implements AppTemplate {
       ? splashScreen
       : [
           this.#renderLog(this.topGraphResult),
-
           this.#renderInput(this.topGraphResult),
           addAssetModal,
         ]}`;
