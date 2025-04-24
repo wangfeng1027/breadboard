@@ -212,6 +212,23 @@ export class Template extends LitElement implements AppTemplate {
     this.isReadyToRenderTurns = true;
   }
 
+  #renderOutput(topGraphResult: TopGraphRunResult) {
+    let outputContents: HTMLTemplateResult | symbol = nothing;
+    let lastOutput = null;
+    const currentItem = topGraphResult.log.at(-1);
+    
+    if (currentItem?.type === "edge" && topGraphResult.status === 'stopped') {
+      lastOutput = currentItem;
+      if (lastOutput !== null) {
+        outputContents = html`<bb-multi-output
+          .outputs=${lastOutput.value ?? null}
+        ></bb-multi-output>`;
+      }
+    }
+
+    return html`<div id="activity">${outputContents}</div>`;
+  }
+
   #renderActivity(topGraphResult: TopGraphRunResult) {
     let activityContents:
       | HTMLTemplateResult
@@ -347,50 +364,33 @@ export class Template extends LitElement implements AppTemplate {
     return html`
     <div class="conversations">
     ${this.#renderIntro()}
-    ${this.#renderTurns(topGraphResult)} 
-    ${topGraphResult.status === 'running'
-      ? html`
-      <div class="turn last loader">
-        <generating-loader
-            .currentText=${topGraphResult.currentNode?.descriptor?.metadata?.title}
-          ></generating-loader>
-      </div>
+    ${repeat(logs, (logEntry)=>{
+        if(logEntry.schema) {
+          //This means there is a user input lets fetch both the question and reply
+          const props = Object.keys(logEntry.schema?.properties ?? {});
+          return html`
+            ${repeat(props, (propKey)=>{
+            if(logEntry.schema?.properties?.[propKey]?.title !== 'Thinking' && logEntry.value?.[propKey] !== 'I will now organize all of my work into a report.') {
+              const flowquery = logEntry.schema?.properties?.[propKey].description;
+              const userResponse = logEntry.value?.[propKey];
+
+              return html`
+              <div class="turn">
+              ${this.#renderUserInputLabel(flowquery)}
+              ${userResponse && this.#renderUserInput(userResponse)}
+
+            </div>
+              `
+        }})}
+
           `
-      : nothing}
+        }
+       })
+    }
     </div>
     `
-  }
 
-  #renderTurns(topGraphResult: TopGraphRunResult) {
-    const logs = topGraphResult.log.filter((logEntry) => logEntry.type === "edge");
-    // isReadyToRenderTurns is determined by the event from text streamer. Once we get the event that introduction is printed
-    // we can continue render turns.
-      if (this.isReadyToRenderTurns) {
-        return  repeat(logs, (logEntry, index)=>{
-          if(logEntry.schema) {
-            //This means there is a user input lets fetch both the question and reply
-            const props = Object.keys(logEntry.schema?.properties ?? {});
-            const lastLog = index === (logs.length - 1);
-            return html`
-              ${repeat(props, (propKey, index)=>{
-                const flowquery = logEntry.schema?.properties?.[propKey].description;
-                const userResponse = logEntry.value?.[propKey];
-                const lastPropKey = index === (props.length - 1);
-  
-                return html`
-                <div class="turn ${classMap({
-                  'last': lastLog && lastPropKey && topGraphResult.status !== 'running'})}">
-                ${this.#renderUserInputLabel(flowquery)}
-                ${userResponse && this.#renderUserInput(userResponse)}
-                </div>
-                `
-              })}
-            `
-          }
-         })
-      } else {
-        return nothing;
-      }
+
   }
 
   #renderUserInput(input: NodeValue) {
@@ -904,7 +904,7 @@ export class Template extends LitElement implements AppTemplate {
       ? splashScreen
       : [
           this.#renderLog(this.topGraphResult),
-          // this.#renderActivity(this.topGraphResult),
+          this.#renderOutput(this.topGraphResult),
           this.#renderInput(this.topGraphResult),
           addAssetModal,
         ]}`;
