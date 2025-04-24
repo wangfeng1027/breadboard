@@ -374,6 +374,7 @@ export class Template extends LitElement implements AppTemplate {
       </div>
           `
       : nothing}
+      ${this.#renderOutput(topGraphResult)}
     </div>
     `
   }
@@ -921,7 +922,7 @@ export class Template extends LitElement implements AppTemplate {
       ? splashScreen
       : [
           this.#renderLog(this.topGraphResult),
-          this.#renderOutput(this.topGraphResult),
+
           this.#renderInput(this.topGraphResult),
           addAssetModal,
         ]}`;
