@@ -17,6 +17,7 @@ import {
   AppTemplateOptions,
   EdgeLogEntry,
   TopGraphRunResult,
+  NodeLogEntry,
 } from "../../types/types";
 import Mode from "../shared/styles/icons.js";
 import Animations from "../shared/styles/animations.js";
@@ -70,7 +71,8 @@ import "../../elements/output/llm-output/llm-output.js";
 import "../../elements/output/multi-output/multi-output.js";
 import { map } from "lit/directives/map.js";
 import { markdown } from "../../directives/markdown";
-
+import "./text-streamer/text-streamer.js";
+import { BehaviorSubject, takeUntil, first} from "rxjs";
 interface Turn {
   query?: string;
   reply? : TopGraphRunResult;
@@ -134,6 +136,9 @@ export class Template extends LitElement implements AppTemplate {
 
   #resizeObserver? : ResizeObserver;
 
+  @state()
+  accessor isReadyToRenderTurns = false;
+
   get additionalOptions() {
     return {
       font: {
@@ -192,7 +197,19 @@ export class Template extends LitElement implements AppTemplate {
   }
 
   #renderIntroduction(fixedReply: string | undefined) {
-    return html `<div class="summary introduction">${fixedReply}</div>`;
+    const myself = 'introduction';
+    return html `
+    <div class="summary introduction">
+      <text-streamer
+        .text=${fixedReply}
+        .caller=${myself}
+        @gen-introduction-complete=${this.#readyToRenderTurns}>
+      </text-streamer>
+    </div>`;
+  }
+
+  #readyToRenderTurns() {
+    this.isReadyToRenderTurns = true;
   }
 
   #renderActivity(topGraphResult: TopGraphRunResult) {
@@ -327,35 +344,10 @@ export class Template extends LitElement implements AppTemplate {
   }
 
   #renderLog(topGraphResult: TopGraphRunResult) {
-    const logs = topGraphResult.log.filter((logEntry) => logEntry.type === "edge");
     return html`
     <div class="conversations">
     ${this.#renderIntro()}
-    ${repeat(logs, (logEntry, index)=>{
-        if(logEntry.schema) {
-          //This means there is a user input lets fetch both the question and reply
-          const props = Object.keys(logEntry.schema?.properties ?? {});
-          const lastLog = index === (logs.length - 1);
-          return html`
-            ${repeat(props, (propKey, index)=>{
-              const flowquery = logEntry.schema?.properties?.[propKey].description;
-              const userResponse = logEntry.value?.[propKey];
-              const lastPropKey = index === (props.length - 1);
-              // console.log(`Going to render: ${lastLog}, ${lastPropKey}, ${index}`);
-              // console.log(logs);
-              return html`
-              <div class="turn ${classMap({
-                'last': lastLog && lastPropKey && topGraphResult.status !== 'running'})}">
-              ${this.#renderUserInputLabel(flowquery)}
-              ${userResponse && this.#renderUserInput(userResponse)}
-              </div>
-              `
-
-            })}
-          `
-        }
-       })
-    }
+    ${this.#renderTurns(topGraphResult)} 
     ${topGraphResult.status === 'running'
       ? html`
       <div class="turn last loader">
@@ -367,6 +359,38 @@ export class Template extends LitElement implements AppTemplate {
       : nothing}
     </div>
     `
+  }
+
+  #renderTurns(topGraphResult: TopGraphRunResult) {
+    const logs = topGraphResult.log.filter((logEntry) => logEntry.type === "edge");
+    // isReadyToRenderTurns is determined by the event from text streamer. Once we get the event that introduction is printed
+    // we can continue render turns.
+      if (this.isReadyToRenderTurns) {
+        return  repeat(logs, (logEntry, index)=>{
+          if(logEntry.schema) {
+            //This means there is a user input lets fetch both the question and reply
+            const props = Object.keys(logEntry.schema?.properties ?? {});
+            const lastLog = index === (logs.length - 1);
+            return html`
+              ${repeat(props, (propKey, index)=>{
+                const flowquery = logEntry.schema?.properties?.[propKey].description;
+                const userResponse = logEntry.value?.[propKey];
+                const lastPropKey = index === (props.length - 1);
+  
+                return html`
+                <div class="turn ${classMap({
+                  'last': lastLog && lastPropKey && topGraphResult.status !== 'running'})}">
+                ${this.#renderUserInputLabel(flowquery)}
+                ${userResponse && this.#renderUserInput(userResponse)}
+                </div>
+                `
+              })}
+            `
+          }
+         })
+      } else {
+        return nothing;
+      }
   }
 
   #renderUserInput(input: NodeValue) {
@@ -389,7 +413,12 @@ export class Template extends LitElement implements AppTemplate {
   }
 
   #renderUserInputLabel(userInput: string | undefined) {
-    return html `<div class="summary">${userInput}</div>`;
+    return html `
+    <div class="summary">
+      <text-streamer 
+        .text=${userInput}>
+      </text-streamer>
+    </div>`;
   }
 
   #renderIntro() {
