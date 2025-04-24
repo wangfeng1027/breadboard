@@ -4415,12 +4415,12 @@ export class Main extends LitElement {
           signInAdapter.state !== "anonymous" &&
           signInAdapter.state !== "valid"
         ) {
-          return html`<bb-connection-entry-signin
+          return html`<bb-connection-authorize-view
             .adapter=${signInAdapter}
-            @bbsignin=${async () => {
+            @bbauthorize=${async () => {
               window.location.reload();
             }}
-          ></bb-connection-entry-signin>`;
+          ></bb-connection-authorize-view>`;
         }
 
         return [

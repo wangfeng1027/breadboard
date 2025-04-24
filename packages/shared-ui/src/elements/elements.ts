@@ -28,6 +28,7 @@ export { CommentOverlay } from "./overlay/comment.js";
 export { ComponentSelectorOverlay } from "./component-selector/component-selector-overlay.js";
 export { ConnectionBroker } from "./connection/connection-broker.js";
 export { ConnectionEntrySignin } from "./connection/connection-entry-signin.js";
+export { ConnectionAuthorizeView } from "./connection/connection-authorize.js";
 export { ConnectionInput } from "./connection/connection-input.js";
 export { ConnectionSettings } from "./connection/connection-settings.js";
 export { ConnectionSignin } from "./connection/connection-signin.js";

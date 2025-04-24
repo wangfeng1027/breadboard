@@ -1412,6 +1412,18 @@ export class FastAccessErrorEvent extends Event {
 }
 
 /**
+ * Authorize
+ */
+
+export class AuthorizeEvent extends Event {
+  static eventName = "bbauthorize";
+
+  constructor() {
+    super(AuthorizeEvent.eventName, { ...eventInit });
+  }
+}
+
+/**
  * Sign In and Out
  */
 
