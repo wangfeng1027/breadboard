@@ -106,10 +106,13 @@ export class ConnectionAuthorizeView extends LitElement {
     }
   `;
 
-  private _handleAuthorize() {
+  private async _handleAuthorize() {
     if (!this.adapter) {
       return;
     }
+
+    const url = await this.adapter.getSigninUrl();
+    window.open(url, '_blank');
 
     this.adapter.whenSignedIn(async (adapter) => {
       // The adapter is immutable, this callback will always return a new
