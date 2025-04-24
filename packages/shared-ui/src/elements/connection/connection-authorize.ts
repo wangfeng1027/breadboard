@@ -135,7 +135,7 @@ export class ConnectionAuthorizeView extends LitElement {
         <div class="flow-diagram-container">
           <img
             class="flow-diagram"
-            src="/images/authorize-flow-diagram.png"
+            src="/images/authorize-flow-diagram.svg"
             alt="Flow diagram illustration"
           />
         </div>
