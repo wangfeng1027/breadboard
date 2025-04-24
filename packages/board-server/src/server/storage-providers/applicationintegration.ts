@@ -3,7 +3,7 @@ import type { BoardServerStore, ServerInfo, StorageBoard } from "../store.js";
 import { GoogleAuth } from 'google-auth-library';
 
 export const APPLICATION_INTEGRATION_SERVER_INFO: ServerInfo = {
-  title: "Application Intgegration",
+  title: "Application Integration",
   description: "Stores boards in Application Integration",
   url: "https://example.com/board-server",
 };
