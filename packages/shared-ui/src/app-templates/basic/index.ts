@@ -384,13 +384,12 @@ export class Template extends LitElement implements AppTemplate {
     // we can continue render turns.
       if (this.isReadyToRenderTurns) {
         return  repeat(logs, (logEntry, index)=>{
-          if(logEntry.schema) {
+          if(logEntry.descriptor?.type === 'input') {
             //This means there is a user input lets fetch both the question and reply
             const props = Object.keys(logEntry.schema?.properties ?? {});
             const lastLog = index === (logs.length - 1);
             return html`
                 ${repeat(props, (propKey, index)=>{
-                  if(logEntry.schema?.properties?.[propKey]?.title !== 'Thinking' && logEntry.value?.[propKey] !== 'I will now organize all of my work into a report.'){
                   const flowquery = logEntry.schema?.properties?.[propKey].description;
                   const userResponse = logEntry.value?.[propKey];
                   const lastPropKey = index === (props.length - 1);
@@ -401,7 +400,7 @@ export class Template extends LitElement implements AppTemplate {
                   ${this.#renderUserInputLabel(flowquery)}
                   ${userResponse && this.#renderUserInput(userResponse)}
                   </div>
-                `}
+                `
               })}
             `
           }
