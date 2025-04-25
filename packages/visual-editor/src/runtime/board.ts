@@ -989,7 +989,9 @@ export class Board extends EventTarget {
     boardServerName: string,
     location: string,
     fileName: string,
-    graph: GraphDescriptor
+    graph: GraphDescriptor,
+    // This is used to refer to the no code agent, if it exists. 
+    noCodeAgentId?: string,
   ) {
     const fail = { result: false, error: "Unable to save", url: undefined };
     const boardServer = this.getBoardServerByName(boardServerName);
@@ -1003,7 +1005,7 @@ export class Board extends EventTarget {
     }
 
     let url = new URL(urlString);
-    const response = await boardServer.create(url, graph);
+    const response = await boardServer.create(url, graph, noCodeAgentId);
     if (response.url) {
       url = new URL(response.url);
     }

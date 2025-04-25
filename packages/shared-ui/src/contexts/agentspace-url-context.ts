@@ -8,6 +8,7 @@ export interface AgentspaceFlowContent {
     agentGoal: string;
     isIframe: boolean;
     parentOrigin: string;
+    noCodeAgentId: string;
 }
 
 // Url context

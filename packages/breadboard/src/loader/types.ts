@@ -149,7 +149,8 @@ export type GraphProvider = {
    */
   create(
     url: URL,
-    graph: GraphDescriptor
+    graph: GraphDescriptor,
+    noCodeAgentId? :string,
   ): Promise<{ result: boolean; error?: string; url?: string }>;
   /**
    * Given a URL, deletes a `GraphDescriptor` instance at that URL.

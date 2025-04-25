@@ -447,6 +447,7 @@ export class Template extends LitElement implements AppTemplate {
 }
 
 
+// Right now, it's the same as scroll to the bottom.
 #scrollToLatestUserQuery(behavior: ScrollBehavior = 'smooth') {
   const calculatedTop =  this.conversationScroller.scrollHeight -
       this.#getLastTurnHeight() - 10;
@@ -474,6 +475,7 @@ export class Template extends LitElement implements AppTemplate {
   const height = this.conversationScroller.clientHeight;
   const introductionHeight = this.renderRoot.querySelector('.introduction')?.clientHeight ?? 0;
   const userInputHeight = this.#getLastUserInputHeight();
+  console.log('making last turn height:', height - (userInputHeight === 0? introductionHeight : userInputHeight) - 40 - /* small padding to avoid parasitic scrollbar */ 3);
   this.conversationScroller.style.setProperty(
     '--conversation-client-height',
     `${height - (userInputHeight === 0? introductionHeight : userInputHeight) - 40 - /* small padding to avoid parasitic scrollbar */ 3}px`,
@@ -550,7 +552,8 @@ export class Template extends LitElement implements AppTemplate {
       );
       setTimeout(() => {
           this.#scrollToLatestUserQuery();
-        }
+        }, 
+        100
       );
     };
 

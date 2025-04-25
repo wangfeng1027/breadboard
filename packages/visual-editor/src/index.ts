@@ -1517,7 +1517,8 @@ export class Main extends LitElement {
       end: Strings.from("STATUS_PROJECT_SAVED"),
       error: Strings.from("ERROR_UNABLE_TO_CREATE_PROJECT"),
     },
-    creator: EditHistoryCreator
+    creator: EditHistoryCreator,
+    noCodeAgentId?: string,
   ) {
     if (this.#isSaving) {
       return;
@@ -1538,7 +1539,8 @@ export class Main extends LitElement {
       boardServerName,
       location,
       fileName,
-      graph
+      graph,
+      noCodeAgentId,
     );
     this.#isSaving = false;
 
@@ -1628,7 +1630,8 @@ export class Main extends LitElement {
 
   async #attemptBoardCreate(
     graph: GraphDescriptor,
-    creator: EditHistoryCreator
+    creator: EditHistoryCreator,
+    noCodeAgentId?: string,
   ) {
     const boardServerName = this.selectedBoardServer;
     const location = this.selectedLocation;
@@ -1645,7 +1648,8 @@ export class Main extends LitElement {
         end: Strings.from("STATUS_PROJECT_CREATED"),
         error: Strings.from("ERROR_UNABLE_TO_CREATE_PROJECT"),
       },
-      creator
+      creator,
+      noCodeAgentId,
     );
   }
 
@@ -2299,6 +2303,7 @@ export class Main extends LitElement {
     const flowGoal = urlParams.get('goal') ?? '';
     const parentOrigin = urlParams.get('parentOrigin') ?? '';
     const isInsideAgentspaceIframe = !!iframe;
+    const noCodeAgentId = urlParams.get('noCodeAgentId') ?? '';
     if (isInsideAgentspaceIframe) {
       this.style.setProperty('--header-height', '0');
     }
@@ -2310,6 +2315,7 @@ export class Main extends LitElement {
       agentGoal: flowGoal,
       isIframe: isInsideAgentspaceIframe,
       parentOrigin,
+      noCodeAgentId,
     }
   }
 
@@ -4211,7 +4217,8 @@ export class Main extends LitElement {
                 @bbgraphboardservergeneratedboard=${(
                   evt: BreadboardUI.Events.GraphBoardServerGeneratedBoardEvent
                 ) => {
-                  this.#attemptBoardCreate(evt.graph, evt.creator);
+                 // This event is only triggered by flowgen-homepage-panel.
+                  this.#attemptBoardCreate(evt.graph, evt.creator, this.agentspaceUrl.noCodeAgentId);
                 }}
                 @bbgraphboardserveradd=${() => {
                   this.showBoardServerAddOverlay = true;
