@@ -295,6 +295,7 @@ async function bootstrap(args: BootstrapArguments = {}) {
     const template = await fetchTemplate(flow);
     const environment = await createEnvironment(args);
     const settingsHelper = new SettingsHelperImpl();
+    await settingsHelper.restoreStore();
     const tokenVendor = await createTokenVendor(settingsHelper, environment);
     const abortController = new AbortController();
     const runConfig = await createRunConfig(

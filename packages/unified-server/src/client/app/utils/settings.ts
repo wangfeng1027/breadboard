@@ -7,17 +7,22 @@ import * as BreadboardUI from "@breadboard-ai/shared-ui";
 import { SettingsStore } from "@breadboard-ai/shared-ui/data/settings-store.js";
 
 // This one is the same as /usr/local/google/home/jialehong/Desktop/breadboard/packages/visual-editor/src/utils/settings-helper.ts.
-export class AgentspaceSettingsHelperImpl implements BreadboardUI.Types.SettingsHelper {
+export class SettingsHelperImpl implements BreadboardUI.Types.SettingsHelper {
 #store: SettingsStore;
 
 constructor() {
     this.#store = SettingsStore.instance();
 }
 
+async restoreStore() {
+  await this.#store.restore();
+}
+
 get(
     section: BreadboardUI.Types.SETTINGS_TYPE,
     name: string
 ): BreadboardUI.Types.SettingEntry["value"] | undefined {
+    console.log('trying to get:', name);
     return this.#store.values[section].items.get(name);
 }
 
