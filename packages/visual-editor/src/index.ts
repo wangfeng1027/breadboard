@@ -1629,7 +1629,6 @@ export class Main extends LitElement {
   async #attemptBoardCreate(
     graph: GraphDescriptor,
     creator: EditHistoryCreator,
-    noCodeAgentId?: string,
   ) {
     const boardServerName = this.selectedBoardServer;
     const location = this.selectedLocation;
@@ -1647,7 +1646,6 @@ export class Main extends LitElement {
         error: Strings.from("ERROR_UNABLE_TO_CREATE_PROJECT"),
       },
       creator,
-      noCodeAgentId,
     );
   }
 
