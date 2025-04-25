@@ -136,8 +136,7 @@ export class Template extends LitElement implements AppTemplate {
 
   #resizeObserver? : ResizeObserver;
 
-  @state()
-  accessor isReadyToRenderTurns = false;
+
 
   get additionalOptions() {
     return {
@@ -209,7 +208,6 @@ export class Template extends LitElement implements AppTemplate {
   }
 
   #readyToRenderTurns() {
-    this.isReadyToRenderTurns = true;
   }
 
   #renderOutput(topGraphResult: TopGraphRunResult) {
@@ -226,7 +224,10 @@ export class Template extends LitElement implements AppTemplate {
       }
     }
 
-    return html`<div id="activity turn last">${outputContents}</div>`;
+    if (outputContents === nothing) {
+      return nothing;
+    }
+    return html`<div id="activity" class="turn last">${outputContents}</div>`;
   }
 
   #renderActivity(topGraphResult: TopGraphRunResult) {
@@ -363,18 +364,20 @@ export class Template extends LitElement implements AppTemplate {
   #renderLog(topGraphResult: TopGraphRunResult) {
     return html`
     <div class="conversations">
-    ${this.#renderIntro()}
-    ${this.#renderTurns(topGraphResult)} 
-    ${topGraphResult.status === 'running'
-      ? html`
-      <div class="turn last loader">
-        <generating-loader
-            .currentText=${topGraphResult.currentNode?.descriptor?.metadata?.title}
-          ></generating-loader>
+      <div class="conversations-content">
+        ${this.#renderIntro()}
+        ${this.#renderTurns(topGraphResult)} 
+        ${topGraphResult.status === 'running'
+          ? html`
+          <div class="turn last loader">
+            <generating-loader
+                .currentText=${topGraphResult.currentNode?.descriptor?.metadata?.title}
+              ></generating-loader>
+          </div>
+              `
+          : nothing}
+          ${this.#renderOutput(topGraphResult)}
       </div>
-          `
-      : nothing}
-      ${this.#renderOutput(topGraphResult)}
     </div>
     `
   }
@@ -383,32 +386,29 @@ export class Template extends LitElement implements AppTemplate {
     const logs = topGraphResult.log.filter((logEntry) => logEntry.type === "edge");
     // isReadyToRenderTurns is determined by the event from text streamer. Once we get the event that introduction is printed
     // we can continue render turns.
-      if (this.isReadyToRenderTurns) {
-        return  repeat(logs, (logEntry, index)=>{
-          if(logEntry.descriptor?.type === 'input') {
-            //This means there is a user input lets fetch both the question and reply
-            const props = Object.keys(logEntry.schema?.properties ?? {});
-            const lastLog = index === (logs.length - 1);
-            return html`
-                ${repeat(props, (propKey, index)=>{
-                  const flowquery = logEntry.schema?.properties?.[propKey].description;
-                  const userResponse = logEntry.value?.[propKey];
-                  const lastPropKey = index === (props.length - 1);
-    
-                  return html`
-                  <div class="turn ${classMap({
-                    'last': lastLog && lastPropKey && topGraphResult.status !== 'running'})}">
-                  ${this.#renderUserInputLabel(flowquery)}
-                  ${userResponse && this.#renderUserInput(userResponse)}
-                  </div>
-                `
-              })}
-            `
-          }
-         })
-      } else {
-        return nothing;
-      }
+      return  repeat(logs, (logEntry, index)=>{
+        if(logEntry.descriptor?.type === 'input') {
+          //This means there is a user input lets fetch both the question and reply
+          const props = Object.keys(logEntry.schema?.properties ?? {});
+          const lastLog = index === (logs.length - 1);
+          return html`
+              ${repeat(props, (propKey, index)=>{
+                const flowquery = logEntry.schema?.properties?.[propKey].description;
+                const userResponse = logEntry.value?.[propKey];
+                const lastPropKey = index === (props.length - 1);
+  
+                return html`
+                <div class="turn ${classMap({
+                  'last': lastLog && lastPropKey && topGraphResult.status !== 'running'})}">
+                ${this.#renderUserInputLabel(flowquery)}
+                ${userResponse && this.#renderUserInput(userResponse)}
+                </div>
+              `
+            })}
+          `
+        }
+        })
+  
   }
 
   #renderUserInput(input: NodeValue) {
@@ -621,17 +621,17 @@ export class Template extends LitElement implements AppTemplate {
 
             const propValue = currentItem.value?.[name];
             let inputValue = "";
-            if (isLLMContent(propValue)) {
-              for (const part of propValue.parts) {
-                if (isTextCapabilityPart(part)) {
-                  inputValue = part.text;
-                }
-              }
-            }
+            // if (isLLMContent(propValue)) {
+            //   for (const part of propValue.parts) {
+            //     if (isTextCapabilityPart(part)) {
+            //       inputValue = part.text;
+            //     }
+            //   }
+            // }
 
             return html`<div class="user-input">
               <textarea
-                placeholder= ${schema.description ? schema.description : "Enter a prompt"}
+                placeholder= ${"Search content or ask questions"}
                 name=${name}
                 type="text"
                 data-type=${dataType}
@@ -703,17 +703,19 @@ export class Template extends LitElement implements AppTemplate {
   #renderConversations() {
     return html `
       <div class="conversations">
-        ${map(this.#turns, (turn: Turn) => {
-          return html `
-            <div class="turn ${classMap({
-                'last': turn === this.#turns.at(-1),
-              })}">
-              ${when(turn.query, () => this.#renderQuery(turn.query))}
-              ${when(!!turn.reply, () =>this.#renderSummary(turn.reply))}
-              ${when(turn.fixedReply, () => this.#renderIntroduction(turn.fixedReply))}
-            </div>
-          `;
-        })}
+        <div class="conversations-content">
+          ${map(this.#turns, (turn: Turn) => {
+            return html `
+              <div class="turn ${classMap({
+                  'last': turn === this.#turns.at(-1),
+                })}">
+                ${when(turn.query, () => this.#renderQuery(turn.query))}
+                ${when(!!turn.reply, () =>this.#renderSummary(turn.reply))}
+                ${when(turn.fixedReply, () => this.#renderIntroduction(turn.fixedReply))}
+              </div>
+            `;
+          })}
+        </div>
       </div>
     `;
   }
@@ -948,9 +950,6 @@ export class Template extends LitElement implements AppTemplate {
 
   firstUpdated() {
     // This is used to skip the start.
-    this.#turns.push({
-      fixedReply: `Hello, this is ${this.graph?.title} and this is what I can do: ${this.graph?.description}`
-    });
     const queryString = window.location.search;
     const urlParams = new URLSearchParams(queryString);
     const skipStart = urlParams.get('start') ?? '';

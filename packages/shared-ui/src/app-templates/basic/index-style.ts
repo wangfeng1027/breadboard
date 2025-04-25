@@ -146,21 +146,24 @@ export default  css`
       padding: 20px 16px;
       overflow-y: auto;
       scrollbar-gutter: stable;
-      scrollbar-width: thin;
+      scrollbar-width: none;
       flex: 1;
+      justify-content: center;
 
-      .turn {
-        .summary {
+      .conversations-content {
+        .turn {
+          .summary {
+            padding-top: 24px;
+            padding-bottom: 40px;
+          }
+        }
+        .turn.last {
+          min-height: var(--conversation-client-height, 0);
+        }
+        .turn.last.loader {
           padding-top: 24px;
           padding-bottom: 40px;
         }
-      }
-      .turn.last {
-        min-height: var(--conversation-client-height, 0);
-      }
-      .turn.last.loader {
-        padding-top: 24px;
-        padding-bottom: 40px;
       }
 
     }
@@ -525,6 +528,7 @@ export default  css`
         width: 100%;
 
         & #input-container {
+          max-width: 760px;
           padding: 6px;
           transition: transform 0.6s cubic-bezier(0, 0, 0.3, 1);
           transform: translateY(0);
