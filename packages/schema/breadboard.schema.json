@@ -388,6 +388,10 @@
 						"$ref": "#/definitions/ParameterMetadata"
 					},
 					"description": "Provides a way to store metadata about parameters See https://github.com/breadboard-ai/breadboard/wiki/Parameters-Design"
+				},
+				"noCodeAgentId": {
+					"type": "string",
+					"description": "The linked no code agent id."
 				}
 			},
 			"additionalProperties": {

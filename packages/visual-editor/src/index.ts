@@ -1518,7 +1518,6 @@ export class Main extends LitElement {
       error: Strings.from("ERROR_UNABLE_TO_CREATE_PROJECT"),
     },
     creator: EditHistoryCreator,
-    noCodeAgentId?: string,
   ) {
     if (this.#isSaving) {
       return;
@@ -1540,7 +1539,6 @@ export class Main extends LitElement {
       location,
       fileName,
       graph,
-      noCodeAgentId,
     );
     this.#isSaving = false;
 
@@ -4218,7 +4216,7 @@ export class Main extends LitElement {
                   evt: BreadboardUI.Events.GraphBoardServerGeneratedBoardEvent
                 ) => {
                  // This event is only triggered by flowgen-homepage-panel.
-                  this.#attemptBoardCreate(evt.graph, evt.creator, this.agentspaceUrl.noCodeAgentId);
+                  this.#attemptBoardCreate(evt.graph, evt.creator);
                 }}
                 @bbgraphboardserveradd=${() => {
                   this.showBoardServerAddOverlay = true;

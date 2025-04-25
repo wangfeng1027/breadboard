@@ -284,11 +284,20 @@ export class FlowgenHomepagePanel extends LitElement {
   #updateFlowBasedOnContext(flow: GraphDescriptor) {
     const flowName = this.agentspaceFlowContent.agentName;
     const flowDescription = this.agentspaceFlowContent.agentGoal;
+    const noCodeAgentId = this.agentspaceFlowContent.noCodeAgentId;
     if (!!flowName && flow ) {
       flow.title = flowName;
     }
     if (!!flowDescription && flow) {
       flow.description = flowDescription;
+    }
+    if (!!noCodeAgentId && flow) {
+      const metadata = flow.metadata;
+      if (metadata) {
+        metadata.noCodeAgentId = noCodeAgentId;
+      } else {
+        flow.metadata = {noCodeAgentId};
+      }
     }
   }
 

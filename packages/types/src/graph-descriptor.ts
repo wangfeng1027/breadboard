@@ -439,6 +439,11 @@ export type GraphMetadata = {
    * See https://github.com/breadboard-ai/breadboard/wiki/Parameters-Design
    */
   parameters?: Record<string, ParameterMetadata>;
+
+  /**
+   * The linked no code agent id.
+   */
+  noCodeAgentId?: string
 };
 
 /**
