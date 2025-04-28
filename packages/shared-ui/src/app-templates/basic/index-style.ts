@@ -614,10 +614,16 @@ export default  css`
           }
 
           & .controls {
-            // margin-left: var(--bb-grid-size-2);
-            margin-left: auto;
             display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-left: auto;
             align-items: flex-end;
+
+            & .action-group {
+              display: flex;
+              gap: 4px;
+            }           
 
             & #stop {
               margin-left: var(--bb-grid-size-2);
@@ -664,8 +670,10 @@ export default  css`
               }
             }
 
-          & .search-button {
+          & .search-button,
+          & .source-button {
               margin-left: var(--bb-grid-size-2);
+              cursor: pointer;
               background: #f8fafd;
               color: rgb(116, 119, 117);
               height: 40px;

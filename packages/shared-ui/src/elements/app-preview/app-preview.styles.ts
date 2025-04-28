@@ -161,7 +161,8 @@ export const styles = css`
 
       margin: 0 auto;
       max-width: 100cqmin;
-      max-height: 100cqmax;
+      // max-height: 100cqmax;
+      height: 100%;
 
       overflow: auto;
       font: 400 var(--bb-body-small) / var(--bb-body-line-height-small)
