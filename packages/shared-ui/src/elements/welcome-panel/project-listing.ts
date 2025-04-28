@@ -44,7 +44,6 @@ import {
   agentspaceUrlContext,
   type AgentspaceFlowContent,
 } from "../../contexts/agentspace-url-context.js";
-import { consume } from "@lit/context";
 
 const MODE_KEY = "bb-project-listing-mode";
 const OVERFLOW_MENU_CLEARANCE = 4;
