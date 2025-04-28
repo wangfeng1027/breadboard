@@ -155,8 +155,10 @@ export default  css`
       scrollbar-width: none;
       flex: 1;
       justify-content: center;
+      display: flex;
 
       .conversations-content {
+        max-width: 708px;
         .turn {
           .summary {
             padding-top: 24px;

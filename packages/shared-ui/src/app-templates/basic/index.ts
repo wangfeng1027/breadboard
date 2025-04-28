@@ -480,7 +480,6 @@ export class Template extends LitElement implements AppTemplate {
   }
 
   #renderIntro() {
-
     const intro = `Hello, this is ${this.graph?.title} and this is what I can do: ${this.graph?.description}`
     return this.#renderIntroduction(intro);
 
