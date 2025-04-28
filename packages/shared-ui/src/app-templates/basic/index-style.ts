@@ -95,6 +95,12 @@ export default  css`
     font-size: 16px;
     font-family: "Google Sans", roboto, sans-serif;
     line-height: 28px;
+    --font-family: "Google Sans", roboto, sans-serif;
+    --bb-body-small: 14px;
+    --bb-body-medium: 16px;
+    --bb-body-large: 18px;
+    --bb-body-line-height-medium: 28px;
+    
   }
 
 /** General styles */
@@ -125,8 +131,8 @@ export default  css`
     justify-content: space-between;
     width: 100%;
     max-height: 100svh;
-    overflow-x: hidden;
-    overflow-y: scroll;
+    
+    
     flex: 1;
     scrollbar-width: none;
     position: relative;
@@ -149,8 +155,10 @@ export default  css`
       scrollbar-width: none;
       flex: 1;
       justify-content: center;
+      display: flex;
 
       .conversations-content {
+        max-width: 708px;
         .turn {
           .summary {
             padding-top: 24px;
