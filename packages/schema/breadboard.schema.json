@@ -398,7 +398,11 @@
 				},
 				"noCodeAgentId": {
 					"type": "string",
-					"description": "The linked no code agent id."
+					"description": "This is only for agentspace usage. The linked no code agent id. This is a UUID."
+				},
+				"noCodeAgentParent": {
+					"type": "string",
+					"description": "This is only for agentspace usage. The linked no code agent parent with format:"
 				}
 			},
 			"additionalProperties": {
