@@ -2289,7 +2289,7 @@ export class Main extends LitElement {
     const iframe = urlParams.get('iframe');
     const flowGoal = urlParams.get('goal') ?? '';
     const parentOrigin = urlParams.get('parentOrigin') ?? '';
-    const isInsideAgentspaceIframe = !!iframe;
+    const isInsideAgentspaceIframe = !!iframe || !!instructions || !!flowGoal || !!flowName;
     const noCodeAgentId = urlParams.get('noCodeAgentId') ?? '';
     if (isInsideAgentspaceIframe) {
       this.style.setProperty('--header-height', '0');

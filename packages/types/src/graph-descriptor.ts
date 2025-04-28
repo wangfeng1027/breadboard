@@ -445,9 +445,16 @@ export type GraphMetadata = {
   parameters?: Record<string, ParameterMetadata>;
 
   /**
-   * The linked no code agent id.
+   * This is only for agentspace usage.
+   * The linked no code agent id. This is a UUID. 
    */
-  noCodeAgentId?: string
+  noCodeAgentId?: string;
+
+  /**
+   * This is only for agentspace usage.
+   * The linked no code agent parent with format: 
+   */
+  noCodeAgentParent?: string;
 };
 
 /**
