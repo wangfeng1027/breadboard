@@ -484,6 +484,8 @@ export default  css`
       --user-input-padding-left: 0;
 
       display: flex;
+      flex-direction: column;
+      align-items: center;
       justify-content: center;
       position: relative;
 
@@ -535,6 +537,18 @@ export default  css`
       &.running {
         width: 100%;
 
+        .disclaimer{
+          color: rgb(95, 99, 104);
+          font-size: 12px;
+          font-weight: 400;
+          line-height: 20px;
+          margin-bottom: 5px;
+          margin-top: 5px;
+          max-width: 650px;
+          text-align: center;
+          width: 100%;
+        }
+
         & #input-container {
           max-width: 760px;
           padding: 6px;
@@ -543,6 +557,7 @@ export default  css`
           color: black;
           width: 100%;
           display: flex;
+          flex-direction: column;
           border: 1px solid #0b57d0;
           border-radius: 24px;
           
@@ -604,15 +619,24 @@ export default  css`
             display: flex;
             align-items: flex-end;
 
+            & #stop {
+              margin-left: var(--bb-grid-size-2);
+              --transition-properties: opacity;
+              transition: var(--transition);
+              background-color: #d3e3fd;
+              border: none;
+              border-radius: 50%;
+              width: 40px;
+              height: 40px;
+              cursor: pointer;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              // transition: background-color 0.3s;
+            }
             & #continue {
               margin-left: var(--bb-grid-size-2);
-              // background: oklch(
-              //     from var(--primary-text-color) l c h /
-              //       calc(alpha - 0.75)
-              //   )
-              //   var(--bb-icon-send) center center / 20px 20px no-repeat;
-            // background: #f8fafd;
-            background: #f8fafd var(--bb-icon-send) center center / 20px 20px no-repeat;
+              background: #f8fafd var(--bb-icon-send) center center / 20px 20px no-repeat;
               color: #747775;
               width: 40px;
               height: 40px;
@@ -639,6 +663,33 @@ export default  css`
                 }
               }
             }
+
+          & .search-button {
+              margin-left: var(--bb-grid-size-2);
+              background: #f8fafd;
+              color: rgb(116, 119, 117);
+              height: 40px;
+              border: none;
+              border-radius: 20px; /* pill shape for icon+text */
+              display: flex;
+              align-items: center;
+              padding: 0 12px;
+              gap: 8px; /* space between icon and text */
+
+              --transition-properties: opacity;
+              transition: var(--transition);
+          }
+
+          & search-button .icon {
+            width: 20px;
+            height: 20px;
+            color: rgb(116, 119, 117)
+          }
+
+          & .search-button .text {
+            font-size: 14px;
+          }
+
           }
         }
         &.active.paused #input-container {
