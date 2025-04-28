@@ -1,5 +1,5 @@
 /**
- * @fileoverview Add a description for your module here.
+ * @fileoverview Manages Gemini prompt.
  */
 
 import invokeBoard from "@invoke";
@@ -62,6 +62,8 @@ export type GeminiPromptOptions = {
 class GeminiPrompt {
   readonly options: GeminiPromptOptions;
 
+  calledTools: boolean = false;
+
   constructor(
     public readonly inputs: GeminiInputs,
     options?: ToolManager | GeminiPromptOptions
@@ -105,6 +107,7 @@ class GeminiPrompt {
   }
 
   async invoke(): Promise<Outcome<GeminiPromptOutput>> {
+    this.calledTools = false;
     const { allowToolErrors, validator } = this.options;
     const invoking = await gemini(this.inputs);
     if (!ok(invoking)) return invoking;
@@ -131,6 +134,7 @@ class GeminiPrompt {
       content,
       async ($board, args, passContext) => {
         console.log("CALLING TOOL", $board, args, passContext);
+        this.calledTools = true;
         const callingTool = await invokeBoard({
           $board,
           ...this.#normalizeArgs(args, passContext),

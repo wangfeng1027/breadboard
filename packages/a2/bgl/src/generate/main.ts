@@ -21,12 +21,13 @@ type Inputs = {
 
 type DescribeInputs = {
   inputs: Inputs;
+  asType?: boolean;
 };
 
 const MODES = [
   {
     id: "text",
-    url: "embed://a2/a2.bgl.json#daf082ca-c1aa-4aff-b2c8-abeb984ab66c",
+    url: "embed://a2/generate-text.bgl.json#daf082ca-c1aa-4aff-b2c8-abeb984ab66c",
     title: "Gemini 2.0 Flash",
     description: "For everyday tasks, plus more",
     icon: "generative-text",
@@ -34,29 +35,36 @@ const MODES = [
   {
     id: "think",
     url: "embed://a2/go-over-list.bgl.json#module:main",
-    title: "Gemini 2.0 Flash + Thinking",
-    description: "For complex task, does additional thinking and planning",
+    title: "Plan and Execute with Gemini 2.0 Flash",
+    description: "Plans and executes complex tasks",
     icon: "generative",
   },
   {
-    id: "image",
+    id: "image-gen",
     url: "embed://a2/a2.bgl.json#module:image-generator",
-    title: "Juno",
-    description: "Generates images",
+    title: "Imagen 3",
+    description: "Generates images from text",
+    icon: "generative-image",
+  },
+  {
+    id: "image",
+    url: "embed://a2/a2.bgl.json#module:image-editor",
+    title: "Gemini 2.0 Flash: Image Generation",
+    description: "Generates images from text and images",
     icon: "generative-image",
   },
   {
     id: "audio",
     url: "embed://a2/audio-generator.bgl.json#module:main",
     title: "AudioLM",
-    description: "Generates audio from text",
+    description: "Generates speech from text",
     icon: "generative-audio",
   },
   {
     id: "video",
     url: "embed://a2/video-generator.bgl.json#module:main",
     title: "Veo 2",
-    description: "GEnerates videos from text",
+    description: "Generates videos from text and images",
     icon: "generative-video",
   },
 ] as const;
@@ -79,16 +87,17 @@ const portMapForward = new Map<ModeId, Map<string, string>>([
       [LIST_PORT, "p-list"],
     ]),
   ],
-  [MODES[1].id, new Map([[PROMPT_PORT, "instruction"]])],
-  [MODES[2].id, new Map([[PROMPT_PORT, "text"]])],
-  [MODES[3].id, new Map([[PROMPT_PORT, "instruction"]])],
   [
-    MODES[4].id,
+    MODES[1].id,
     new Map([
       [PROMPT_PORT, "plan"],
       [LIST_PORT, "z-list"],
     ]),
   ],
+  [MODES[2].id, new Map([[PROMPT_PORT, "instruction"]])],
+  [MODES[3].id, new Map([[PROMPT_PORT, "instruction"]])],
+  [MODES[4].id, new Map([[PROMPT_PORT, "text"]])],
+  [MODES[5].id, new Map([[PROMPT_PORT, "instruction"]])],
 ]);
 
 const portMapReverse = new Map(
@@ -139,9 +148,29 @@ async function invoke({ "generation-mode": mode, ...rest }: Inputs) {
 
 async function describe({
   inputs: { "generation-mode": mode, ...rest },
+  asType,
 }: DescribeInputs) {
-  const { url, id } = getMode(mode);
+  const metadata = {
+    title: "Generate",
+    description: "Uses Gemini to generate content and call tools",
+    metadata: {
+      icon: "generative",
+      tags: ["quick-access", "generative", "generate"],
+      order: 1,
+    },
+  };
 
+  // When asked for to be described as type, skip trying to
+  // get the detailed schema and just return metadata.
+  if (asType) {
+    return {
+      ...metadata,
+      inputSchema: {},
+      outputSchema: {},
+    };
+  }
+
+  const { url, id } = getMode(mode);
   const describing = await describeGraph({ url, inputs: rest });
   let modeSchema: Record<string, Schema> = {};
   if (ok(describing)) {

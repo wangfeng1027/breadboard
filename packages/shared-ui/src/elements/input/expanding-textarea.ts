@@ -10,6 +10,13 @@ import { createRef, ref } from "lit/directives/ref.js";
 import { icons } from "../../styles/icons.js";
 
 /**
+ * TODO(aomarks) Replace with some proper HTML, but that requires switching to a
+ * contenteditable approach. Since we need chips too, let's actually embed (or
+ * merge with) bb-text-editor, which already does contenteditable very well.
+ */
+const TEMPORARY_TAB_ICON_TEXT = " <Tab>";
+
+/**
  * A text input which grows to fit its content.
  *
  * Use the "submit" slot to set the config icon, e.g.:
@@ -40,6 +47,7 @@ export class ExpandingTextarea extends LitElement {
 
   #measure = createRef<HTMLElement>();
   #textarea = createRef<HTMLTextAreaElement>();
+  #resizeObserver = new ResizeObserver(() => this.#recomputeHeight());
 
   static override styles = [
     icons,
@@ -54,7 +62,7 @@ export class ExpandingTextarea extends LitElement {
       }
       #outer-container {
         display: flex;
-        align-items: flex-end;
+        align-items: center;
         --line-height: 1lh;
       }
       #inner-container {
@@ -70,8 +78,8 @@ export class ExpandingTextarea extends LitElement {
         font-size: inherit;
         font-weight: inherit;
         font-family: inherit;
-        word-break: break-all;
-        white-space: pre-wrap;
+        word-break: normal;
+        white-space: normal;
       }
       textarea {
         flex: 1;
@@ -84,6 +92,7 @@ export class ExpandingTextarea extends LitElement {
         border: none;
         resize: none;
         overflow-y: auto;
+        scrollbar-color: #e1e1e1 transparent;
       }
       textarea:focus-visible {
         outline: none;
@@ -94,8 +103,12 @@ export class ExpandingTextarea extends LitElement {
         pointer-events: none;
         position: absolute;
         user-select: none;
-        top: 0;
-        left: 0;
+        top: 2px;
+        left: 2px;
+        border: none;
+        /* Not sure why, but we need this small adjustment to make the #measure
+           div consistently align with the textarea. */
+        margin-right: 2px;
       }
       #measure::after {
         /* Unlike our <textarea>, our measurement <div> won't claim height for
@@ -115,10 +128,23 @@ export class ExpandingTextarea extends LitElement {
       #submit:hover {
         filter: brightness(125%);
       }
+      ::slotted(.g-icon) {
+        font-size: 22px !important;
+      }
     `,
   ];
 
-  updated(changes: PropertyValues<this>) {
+  override connectedCallback() {
+    super.connectedCallback();
+    this.#resizeObserver.observe(this);
+  }
+
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    this.#resizeObserver.disconnect();
+  }
+
+  override updated(changes: PropertyValues<this>) {
     if (changes.has("value")) {
       this.updateComplete.then(() => this.#recomputeHeight());
     }
@@ -132,7 +158,9 @@ export class ExpandingTextarea extends LitElement {
             ${ref(this.#textarea)}
             part="textarea"
             .value=${this.value}
-            .placeholder=${this.placeholder}
+            .placeholder=${this.tabCompletesPlaceholder
+              ? this.placeholder + TEMPORARY_TAB_ICON_TEXT
+              : this.placeholder}
             .disabled=${this.disabled}
             @input=${this.#onInput}
             @keydown=${this.#onKeydown}
@@ -206,7 +234,11 @@ export class ExpandingTextarea extends LitElement {
     if (!textarea || !measure) {
       return;
     }
-    measure.textContent = textarea.value || this.placeholder;
+    measure.textContent =
+      textarea.value ||
+      (this.tabCompletesPlaceholder
+        ? this.placeholder + TEMPORARY_TAB_ICON_TEXT
+        : this.placeholder);
     // Instead of directly matching the height, round to the nearest number of
     // lines, and then multiply by line height. This ensures our height is
     // always a multiple of line height, and accounts for tiny rendering

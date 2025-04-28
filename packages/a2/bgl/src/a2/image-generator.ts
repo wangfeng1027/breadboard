@@ -1,5 +1,5 @@
 /**
- * @fileoverview Generates an image using supplied context.
+ * @fileoverview Generates an image using supplied context (generation only).
  */
 
 import invokeBoard from "@invoke";
@@ -21,11 +21,11 @@ import {
   toTextConcat,
   joinContent,
   llm,
-  extractInlineData,
+  extractMediaData,
   extractTextData,
   mergeContent,
 } from "./utils";
-import { callImageGen, callImageEdit, promptExpander } from "./image-utils";
+import { callImageGen, promptExpander } from "./image-utils";
 import { Template } from "./template";
 import { ToolManager } from "./tool-manager";
 import { type Params, type DescriberResult } from "./common";
@@ -108,7 +108,7 @@ async function invoke({
   if (!aspectRatio) {
     aspectRatio = "1:1";
   }
-  let imageContext = extractInlineData(incomingContext);
+  let imageContext = extractMediaData(incomingContext);
   const textContext = extractTextData(incomingContext);
   // Substitute params in instruction.
   const toolManager = new ToolManager(new ArgumentNameGenerator());
@@ -134,7 +134,7 @@ async function invoke({
         context.push(...gatheringInformation.all);
       }
 
-      const refImages = extractInlineData([instruction]);
+      const refImages = extractMediaData([instruction]);
       const refText = instruction
         ? toLLMContent(toTextConcat(extractTextData([instruction])))
         : toLLMContent("");
@@ -143,30 +143,12 @@ async function invoke({
       let retryCount = MAX_RETRIES;
 
       while (retryCount--) {
-        // Image editing case.
         if (imageContext.length > 0) {
-          console.log("Step has reference image, using editing API");
-          const instructionText = refText ? toText(refText) : "";
-          const combinedInstruction = toTextConcat(
-            joinContent(instructionText, textContext, false)
-          ).trim();
-          if (!combinedInstruction) {
-            return toLLMContent(
-              "Error: an image editing instruction must be provided along side the reference image."
-            );
-          }
-          const finalInstruction =
-            combinedInstruction + "\nAspect ratio: " + aspectRatio;
-          console.log("PROMPT: " + finalInstruction);
-          const generatedImage = await callImageEdit(
-            finalInstruction,
-            imageContext,
-            disablePromptRewrite,
-            aspectRatio
+          return err(
+            `References images are not supported with Imagen. For image editing or style transfer, try Gemini Image Generation.`
           );
-          return mergeContent(generatedImage, "model");
         } else {
-          console.log("Step as text only, using generation API");
+          console.log("Step has text only, using generation API");
           let imagePrompt: LLMContent;
           if (disablePromptRewrite) {
             imagePrompt = toLLMContent(toText(addUserTurn(refText, context)));
@@ -181,6 +163,7 @@ async function invoke({
           const iPrompt = toText(imagePrompt).trim();
           console.log("PROMPT", iPrompt);
           const generatedImage = await callImageGen(iPrompt, aspectRatio);
+          if (!ok(generatedImage)) return generatedImage;
           return mergeContent(generatedImage, "model");
         }
       }

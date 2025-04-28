@@ -39,6 +39,12 @@ interface DriveFileQuery {
   files: DriveFile[];
 }
 
+// TODO(aomarks) Make this configurable via a VITE_ env variable.
+const GOOGLE_DRIVE_FOLDER_NAME = "Breadboard";
+const GOOGLE_DRIVE_FOLDER_MIME_TYPE = "application/vnd.google-apps.folder";
+const GRAPH_MIME_TYPE = "application/vnd.breadboard.graph+json";
+const DEPRECATED_GRAPH_MIME_TYPE = "application/json";
+
 // This whole package should probably be called
 // "@breadboard-ai/google-drive-board-server".
 // But it's good that we have both components and the board server here:
@@ -122,7 +128,7 @@ class GoogleDriveBoardServer extends EventTarget implements BoardServer {
     super();
 
     this.url = configuration.url;
-    this.projects = this.#refreshProjects();
+    this.projects = this.refreshProjects();
     this.kits = configuration.kits;
     this.users = configuration.users;
     this.secrets = configuration.secrets;
@@ -137,10 +143,14 @@ class GoogleDriveBoardServer extends EventTarget implements BoardServer {
     this.#projects = await this.projects;
   }
 
-  async #refreshProjects(): Promise<BoardServerProject[]> {
-    const folderId = this.url.hostname;
+  async refreshProjects(): Promise<BoardServerProject[]> {
+    const folderId = await this.findOrCreateFolder();
     const accessToken = await getAccessToken(this.vendor);
-    const query = `"${folderId}" in parents and mimeType = "application/json"`;
+    const query =
+      `"${folderId}" in parents` +
+      ` and (mimeType="${GRAPH_MIME_TYPE}"` +
+      `      or mimeType="${DEPRECATED_GRAPH_MIME_TYPE}")` +
+      ` and trashed=false`;
 
     if (!folderId || !accessToken) {
       throw new Error("No folder ID or access token");
@@ -168,26 +178,51 @@ class GoogleDriveBoardServer extends EventTarget implements BoardServer {
         console.warn(response);
       }
 
-      const projects = response.files
-        .filter((file) => file.mimeType === "application/json")
-        .map((file) => {
-          const { title, tags } = readAppProperties(file);
-          return {
-            url: new URL(`${this.url}/${file.id}`),
-            metadata: {
-              owner: "board-builder",
-              tags,
-              title,
-              access,
-            },
-          };
-        });
+      const projects = response.files.map((file) => {
+        const { title, tags } = readAppProperties(file);
+        return {
+          url: new URL(`${this.url}/${file.id}`),
+          metadata: {
+            owner: "board-builder",
+            tags,
+            title,
+            access,
+          },
+        };
+      });
 
       return projects;
     } catch (err) {
       console.warn(err);
       return [];
     }
+  }
+
+  async listSharedBoards(): Promise<string[]> {
+    const accessToken = await getAccessToken(this.vendor);
+    if (!accessToken) {
+      throw new Error("No folder ID or access token");
+    }
+    const query =
+      `mimeType = "${GRAPH_MIME_TYPE}"` +
+      ` and sharedWithMe=true` +
+      ` and trashed=false`;
+    const api = new Files(accessToken);
+    const fileRequest = await fetch(api.makeQueryRequest(query));
+    const response: DriveFileQuery = await fileRequest.json();
+    return response.files.map((file) => file.id);
+  }
+
+  async listAssets(): Promise<string[]> {
+    const accessToken = await getAccessToken(this.vendor);
+    if (!accessToken) {
+      throw new Error("No folder ID or access token");
+    }
+    const query = `(mimeType contains 'image/')` + ` and trashed=false`;
+    const api = new Files(accessToken);
+    const fileRequest = await fetch(api.makeQueryRequest(query));
+    const response: DriveFileQuery = await fileRequest.json();
+    return response.files.map((file) => file.id);
   }
 
   getAccess(_url: URL, _user: User): Promise<Permission> {
@@ -268,7 +303,10 @@ class GoogleDriveBoardServer extends EventTarget implements BoardServer {
       await fetch(
         api.makePatchRequest(
           file,
-          createAppProperties(file, descriptor),
+          {
+            ...createAppProperties(file, descriptor),
+            mimeType: GRAPH_MIME_TYPE,
+          },
           descriptor
         )
       );
@@ -290,7 +328,7 @@ class GoogleDriveBoardServer extends EventTarget implements BoardServer {
   ): Promise<{ result: boolean; error?: string; url?: string }> {
     // First create the file, then save.
 
-    const parent = this.url.hostname;
+    const parent = await this.findOrCreateFolder();
     const fileName = url.href.replace(`${this.url.href}/`, "");
     const accessToken = await getAccessToken(this.vendor);
 
@@ -300,7 +338,7 @@ class GoogleDriveBoardServer extends EventTarget implements BoardServer {
         api.makeMultipartCreateRequest(
           {
             name: fileName,
-            mimeType: "application/json",
+            mimeType: GRAPH_MIME_TYPE,
             parents: [parent],
             ...createAppProperties(fileName, descriptor),
           },
@@ -309,10 +347,11 @@ class GoogleDriveBoardServer extends EventTarget implements BoardServer {
       );
 
       const file: DriveFile = await response.json();
-      const updatedUrl = `${GoogleDriveBoardServer.PROTOCOL}//${parent}/${file.id}`;
+      const updatedUrl = `${GoogleDriveBoardServer.PROTOCOL}/${file.id}`;
 
-      this.projects = this.#refreshProjects();
+      this.projects = this.refreshProjects();
 
+      console.log("Google Drive: Created new board", updatedUrl);
       return { result: true, url: updatedUrl };
     } catch (err) {
       console.warn(err);
@@ -327,7 +366,7 @@ class GoogleDriveBoardServer extends EventTarget implements BoardServer {
       const api = new Files(accessToken!);
       await fetch(api.makeDeleteRequest(file));
 
-      this.projects = this.#refreshProjects();
+      this.projects = this.refreshProjects();
 
       return { result: true };
     } catch (err) {
@@ -409,6 +448,45 @@ class GoogleDriveBoardServer extends EventTarget implements BoardServer {
 
   async preview(_url: URL): Promise<URL> {
     throw new Error("Method not implemented.");
+  }
+
+  async findOrCreateFolder(): Promise<string> {
+    const accessToken = await getAccessToken(this.vendor);
+    if (!accessToken) {
+      throw new Error("No access token");
+    }
+    const api = new Files(accessToken);
+
+    const findRequest = api.makeQueryRequest(
+      `name="${GOOGLE_DRIVE_FOLDER_NAME}"` +
+        ` and mimeType="${GOOGLE_DRIVE_FOLDER_MIME_TYPE}"` +
+        ` and trashed=false`
+    );
+    const { files } = (await (
+      await fetch(findRequest)
+    ).json()) as DriveFileQuery;
+    if (files.length > 0) {
+      if (files.length > 1) {
+        console.warn(
+          "Google Drive: Multiple candidate root folders found," +
+            " picking the first one arbitrarily:",
+          files
+        );
+      }
+      const id = files[0]!.id;
+      console.log("Google Drive: Found existing root folder", id);
+      return id;
+    }
+
+    const createRequest = api.makeCreateRequest({
+      name: GOOGLE_DRIVE_FOLDER_NAME,
+      mimeType: GOOGLE_DRIVE_FOLDER_MIME_TYPE,
+    });
+    const { id } = (await (await fetch(createRequest)).json()) as {
+      id: string;
+    };
+    console.log("Google Drive: Created new root folder", id);
+    return id;
   }
 }
 

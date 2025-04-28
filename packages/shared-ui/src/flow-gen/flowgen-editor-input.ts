@@ -43,7 +43,8 @@ export class FlowgenEditorInput extends LitElement {
         flex-direction: column;
         justify-content: center;
         align-items: center;
-        width: 360px;
+        max-width: 500px;
+        margin: 0 var(--bb-grid-size-2);
 
         --color-transition: color 100ms;
         --input-color: #24369c92;
@@ -57,18 +58,38 @@ export class FlowgenEditorInput extends LitElement {
         --icon-color: #0c57d0;
       }
 
+      #dismiss-button {
+        background: none;
+        border: none;
+        color: var(--bb-neutral-200);
+        font-size: 1.2rem;
+        cursor: pointer;
+        padding: 0;
+        margin-left: var(--bb-grid-size-5);
+      }
+
+      .dismiss-button:hover {
+        color: var(--bb-neutral-400);
+      }
+
+      p {
+        word-break: break-all;
+      }
+
       #feedback {
         font: 400 var(--bb-title-small) / var(--bb-title-line-height-small)
           var(--bb-font-family);
-        color: var(--bb-neutral-700);
+        color: var(--bb-neutral-200);
         transition: var(--color-transition);
-        background: var(--bb-neutral-50);
-        padding: 0;
+        background: var(--bb-neutral-800);
+        border-radius: var(--bb-grid-size-2);
+        padding-left: var(--bb-grid-size-5);
+        padding-right: var(--bb-grid-size-5);
         word-break: break-all;
-
-        > .error {
-          color: var(--bb-warning-500);
-        }
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: var(--bb-grid-size-4);
       }
 
       #gradient-border-container {
@@ -76,7 +97,7 @@ export class FlowgenEditorInput extends LitElement {
         display: flex;
         width: 100%;
         background: linear-gradient(0deg, #f4f0f3, #e8eef7);
-        border-radius: 100px;
+        border-radius: 20px;
         padding: 10px;
         transition: box-shadow 1s ease-out;
       }
@@ -97,10 +118,10 @@ export class FlowgenEditorInput extends LitElement {
         transition: var(--color-transition);
         background: #fff;
         border: none;
-        border-radius: 100px;
-        padding: 8px 16px;
+        border-radius: 12px;
+        padding: var(--bb-grid-size-3) var(--bb-grid-size-4);
         --min-lines: 1;
-        --max-lines: 3;
+        --max-lines: 4;
         font: 400 var(--bb-title-small) / var(--bb-title-line-height-small)
           var(--bb-font-family);
         line-height: 20px;
@@ -148,8 +169,12 @@ export class FlowgenEditorInput extends LitElement {
   readonly #descriptionInput = createRef<ExpandingTextarea>();
 
   override render() {
+    const feedback = html` <div id="feedback">
+      <p>${this.#renderFeedback()}</p>
+      <button id="dismiss-button" @click=${this.#onClearError}>&#215</button>
+    </div>`;
     return [
-      html`<p id="feedback">${this.#renderFeedback()}</p>`,
+      this.#renderFeedback() == nothing ? nothing : feedback,
       this.#renderInput(),
     ];
   }
@@ -200,7 +225,6 @@ export class FlowgenEditorInput extends LitElement {
           ${ref(this.#descriptionInput)}
           .disabled=${isGenerating}
           .placeholder=${Strings.from("COMMAND_DESCRIBE_EDIT_FLOW")}
-          .tabCompletesPlaceholder=${false}
           @change=${this.#onInputChange}
           @focus=${this.#onInputFocus}
           @blur=${this.#onInputBlur}
@@ -213,6 +237,10 @@ export class FlowgenEditorInput extends LitElement {
         </bb-expanding-textarea>
       </div>
     `;
+  }
+
+  get #originalIntent() {
+    return this.currentGraph?.metadata?.intent;
   }
 
   #onInputChange() {
@@ -231,6 +259,10 @@ export class FlowgenEditorInput extends LitElement {
         .then((graph) => this.#onGenerateComplete(graph))
         .catch((error) => this.#onGenerateError(error));
     }
+  }
+
+  #onClearError() {
+    this.#state = { status: "initial" };
   }
 
   async #generateBoard(intent: string): Promise<GraphDescriptor> {

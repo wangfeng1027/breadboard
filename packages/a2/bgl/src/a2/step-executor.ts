@@ -57,6 +57,7 @@ export type ExecuteStepRequest = {
 
 export type ExecuteStepResponse = {
   executionOutputs: ContentMap;
+  errorMessage?: string;
 };
 
 function maybeExtractError(e: string): string {
@@ -127,7 +128,7 @@ async function executeStep(
   let $error: string = "Unknown error";
   if (!ok(fetchResult)) {
     const { status, $error: errObject } = fetchResult as FetchErrorResponse;
-    console.warn($error);
+    console.warn("Error response", fetchResult);
     if (!status) {
       // This is not an error response, presume fatal error.
       return { $error };
@@ -136,5 +137,9 @@ async function executeStep(
     return { $error };
   }
   const response = fetchResult.response as ExecuteStepResponse;
+  if (response.errorMessage) {
+    $error = response.errorMessage;
+    return { $error };
+  }
   return response;
 }

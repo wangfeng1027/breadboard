@@ -3,7 +3,7 @@
  */
 
 import { Template } from "./template";
-import { ok, err, toText, isEmpty, toLLMContent } from "./utils";
+import { ok, err, toText, isEmpty, mergeContent, toLLMContent } from "./utils";
 import { callGenWebpage } from "./html-generator";
 import { fanOutContext, flattenContext } from "./lists";
 
@@ -11,12 +11,11 @@ import read from "@read";
 
 export { invoke as default, describe };
 
-const MANUAL_MODE = "Layout manually";
-const AUTO_MODE = "Display with autolayout";
+const MANUAL_MODE = "Manual layout";
+const AUTO_MODE = "Webpage with auto-layout";
 
 type InvokeInputs = {
   text?: LLMContent;
-  instruction?: string;
   "p-render-mode": string;
 };
 
@@ -111,7 +110,6 @@ function themeColorsPrompt(colors: ThemeColors): string {
 
 async function invoke({
   text,
-  instruction,
   "p-render-mode": renderMode,
   ...params
 }: InvokeInputs) {
@@ -123,14 +121,11 @@ async function invoke({
   if (!ok(substituting)) {
     return substituting;
   }
-  let context = await fanOutContext(
-    substituting,
-    undefined,
-    async (instruction) => instruction
+
+  const context = mergeContent(
+    flattenContext([substituting], true, "\n\n"),
+    "user"
   );
-  if (!ok(context)) return context;
-  context = flattenContext(context);
-  // TODO(askerryryan): Further cleanup modes once FlowGen is fully in sync.
   if (renderMode == MANUAL_MODE) {
     renderMode = "Manual";
   } else if (renderMode == AUTO_MODE) {
@@ -141,25 +136,22 @@ async function invoke({
   console.log("Rendering mode: " + renderMode);
   let out = context;
   if (renderMode != "Manual") {
-    let instruction = "Render content with markdown format.";
-    if (renderMode === "HTML" || renderMode === "Interactive") {
-      instruction = `Render content as a mobile webpage.
-
+    let instruction = `Render content as a mobile webpage.
 ${themeColorsPrompt(await getThemeColors())}
 `;
-    }
     instruction +=
-      " Assume content will render on a mobile device. Use a responsive or mobile-friendly layout whenever possible and minimize unnecessary padding or margins.";
+      " Use a responsive or mobile-friendly layout whenever possible and minimize unnecessary padding or margins.";
     console.log("Generating output based on instruction: ", instruction);
-    const webPage = await callGenWebpage(instruction, context, renderMode);
+    const webPage = await callGenWebpage(instruction, [context], renderMode);
     if (!ok(webPage)) {
       console.error("Failed to generated html output");
+      return webPage;
     } else {
-      out = [await webPage];
+      out = await webPage;
       console.log(out);
     }
   }
-  if (!ok(out)) return out;
+  if (!ok(out)) return err(out);
   return { context: out };
 }
 
@@ -179,11 +171,10 @@ async function describe({ inputs: { text } }: DescribeInputs) {
         "p-render-mode": {
           type: "string",
           enum: [MANUAL_MODE, AUTO_MODE],
-          title: "Display",
+          title: "Display format",
           behavior: ["config", "hint-preview"],
           default: MANUAL_MODE,
-          description:
-            "Choose how to combine the outputs (Manual: output is rendered exactly as configured below. Markdown: automatically combine the results into a markdown document, HTML: automatically combine the results into a webpage, Interactive: an interactive visualization or widget)",
+          description: "Choose how to combine and display the outputs",
         },
         ...template.schemas(),
       },

@@ -52,9 +52,9 @@ type ValidColorStrings = `#${string}` | `--${string}`;
 
 const USER_REGEX = /\/@[^/]+\//;
 
-const LOCAL_REVISION_HISTORY_KEY = "revision-history";
-const LOCAL_REVISION_HISTORY_VERSION = 1;
-interface LocalRevisionHistoryDBSchema extends idb.DBSchema {
+const LOCAL_EDIT_HISTORY_KEY = "revision-history";
+const LOCAL_EDIT_HISTORY_VERSION = 1;
+interface LocalEditHistoryDBSchema extends idb.DBSchema {
   revisions: {
     key: string;
     value: EditHistoryEntry[];
@@ -713,21 +713,7 @@ export class Board extends EventTarget {
     subGraphId: GraphIdentifier | null = null,
     creator: EditHistoryCreator | null = null
   ) {
-    let url = this.#makeRelativeToCurrentBoard(boardUrl, currentUrl);
-
-    // Redirect older /graphs examples to /example-boards
-    if (url?.startsWith("/graphs")) {
-      url = url.replace(/^\/graphs/, "/example-boards");
-    }
-
-    // Match any older URLs like /example-boards/blank.json and redirect to the
-    // newer /example-boards/playground/blank.json
-    const pgRegex = /example-boards\/([^\\/]+.json)$/;
-    const matches = pgRegex.exec(boardUrl ?? "");
-    if (url && matches && matches.length === 2) {
-      url = `/example-boards/playground/${matches[1]}`;
-    }
-
+    const url = this.#makeRelativeToCurrentBoard(boardUrl, currentUrl);
     if (!url) {
       return;
     }
@@ -1139,9 +1125,9 @@ export class Board extends EventTarget {
   }
 
   async #openLocalHistoryDB() {
-    return await idb.openDB<LocalRevisionHistoryDBSchema>(
-      LOCAL_REVISION_HISTORY_KEY,
-      LOCAL_REVISION_HISTORY_VERSION,
+    return await idb.openDB<LocalEditHistoryDBSchema>(
+      LOCAL_EDIT_HISTORY_KEY,
+      LOCAL_EDIT_HISTORY_VERSION,
       {
         upgrade(db) {
           if (!db.objectStoreNames.contains("revisions")) {

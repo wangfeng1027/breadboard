@@ -34,7 +34,7 @@ import type {
   AppTheme,
   AssetEdge,
   Command,
-  DroppedAsset,
+  NewAsset,
   EdgeAttachmentPoint,
   EdgeData,
   Settings,
@@ -225,6 +225,20 @@ export class ZoomToFitEvent extends Event {
   static eventName = "bbzoomtofit";
   constructor(public readonly animate = true) {
     super(ZoomToFitEvent.eventName, { ...eventInit });
+  }
+}
+
+export class ZoomInEvent extends Event {
+  static eventName = "bbzoomin";
+  constructor(public readonly animate = true) {
+    super(ZoomInEvent.eventName, { ...eventInit });
+  }
+}
+
+export class ZoomOutEvent extends Event {
+  static eventName = "bbzoomout";
+  constructor(public readonly animate = true) {
+    super(ZoomOutEvent.eventName, { ...eventInit });
   }
 }
 
@@ -1017,7 +1031,7 @@ export class EdgeAttachmentMoveEvent extends Event {
 
 export class DroppedAssetsEvent extends Event {
   static eventName = "bbdroppedassets" as const;
-  constructor(public readonly assets: DroppedAsset[]) {
+  constructor(public readonly assets: NewAsset[]) {
     super(DroppedAssetsEvent.eventName, { ...eventInit });
   }
 }

@@ -20,6 +20,7 @@ import type {
 } from "@breadboard-ai/types";
 import { DataCapability } from "../types.js";
 import {
+  Chunk,
   DataPartTransformer,
   DataPartTransformType,
   Outcome,
@@ -112,11 +113,18 @@ export const isDataCapability = (value: unknown): value is DataCapability => {
 };
 
 export const asBlob = async (
-  part: InlineDataCapabilityPart | StoredDataCapabilityPart
+  part: InlineDataCapabilityPart | StoredDataCapabilityPart | Chunk
 ) => {
   let url: string;
   if (isStoredData(part)) {
     url = part.storedData.handle;
+  } else if (isChunk(part)) {
+    const { mimetype } = part;
+    let { data } = part;
+    if (mimetype.startsWith("text")) {
+      data = btoa(data);
+    }
+    url = `data:${mimetype};base64,${data}`;
   } else {
     const { mimeType } = part.inlineData;
     let { data } = part.inlineData;
@@ -137,6 +145,13 @@ export const isStoredData = (
   const data = value as DataCapability;
   if (!("storedData" in data)) return false;
   if (typeof data.storedData.handle !== "string") return false;
+  return true;
+};
+
+export const isChunk = (value: unknown): value is Chunk => {
+  if (typeof value !== "object" || value === null) return false;
+  if (!("mimetype" in value)) return false;
+  if (!("data" in value)) return false;
   return true;
 };
 

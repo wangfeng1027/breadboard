@@ -99,6 +99,7 @@ class SideboardRuntimeImpl
       servers,
       undefined
     );
+    this.#dataStore.createGroup("sideboard");
     this.#fileSystem = createFileSystem({
       env: [],
       local: createFileSystemBackend(createEphemeralBlobStore()),
@@ -117,7 +118,7 @@ class SideboardRuntimeImpl
       this.dispatchEvent(new Event("running", { ...EVENT_DICT }));
     }
     this.#runningTaskCount++;
-    const runner = await this.createRunner(task.graph, task.url);
+    const runner = await this.createRunner(task.graph, task.url, task.signal);
     const inputs = {
       context: task.context,
     } as InputValues;
@@ -169,7 +170,8 @@ class SideboardRuntimeImpl
 
   async createConfig(
     graph: GraphDescriptor | string,
-    graphURLForProxy?: string
+    graphURLForProxy?: string,
+    signal?: AbortSignal
   ): Promise<RunConfig> {
     let loadGraph = false;
     let url;
@@ -196,7 +198,7 @@ class SideboardRuntimeImpl
     }
     let config: RunConfig = {
       url,
-      diagnostics: true,
+      diagnostics: "silent",
       kits: [...this.#graphStore.kits],
       loader: this.#graphStore.loader,
       store: this.#dataStore.createRunDataStore(url),
@@ -207,6 +209,7 @@ class SideboardRuntimeImpl
         assets: assetsFromGraphDescriptor(graph),
       }),
       interactiveSecrets: true,
+      signal,
     };
 
     if (!loadGraph) {
@@ -238,9 +241,10 @@ class SideboardRuntimeImpl
 
   async createRunner(
     graph: GraphDescriptor | string,
-    graphURLForProxy?: string
+    graphURLForProxy?: string,
+    signal?: AbortSignal
   ): Promise<HarnessRunner> {
-    const config = await this.createConfig(graph, graphURLForProxy);
+    const config = await this.createConfig(graph, graphURLForProxy, signal);
 
     const runner = createRunner(config);
     runner.addEventListener("secret", async (event) => {

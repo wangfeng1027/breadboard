@@ -40,6 +40,7 @@ export const styles = css`
     background: var(--bb-neutral-0);
     position: relative;
     padding: var(--bb-grid-size-4);
+    container-type: size;
 
     & #status {
       padding: var(--bb-grid-size-2);
@@ -120,32 +121,14 @@ export const styles = css`
           }
         }
       }
-
-      & #share {
-        width: 20px;
-        height: 20px;
-        background: var(--bb-icon-share) center center / 20px 20px no-repeat;
-        font-size: 0;
-        margin: 0 0 var(--bb-grid-size-3) 0;
-        border: none;
-        opacity: 0.5;
-        transition: opacity 0.2s cubic-bezier(0, 0, 0.3, 1);
-
-        &:not([disabled]) {
-          cursor: pointer;
-
-          &:hover,
-          &:focus {
-            opacity: 1;
-          }
-        }
-      }
     }
 
     & #theme-edit {
+      display: flex;
+      align-items: center;
+      justify-content: center;
       padding: var(--bb-grid-size-3) 0 var(--bb-grid-size-4) 0;
       width: 100%;
-      max-width: 450px;
 
       & #designer {
         height: var(--bb-grid-size-8);
@@ -175,11 +158,10 @@ export const styles = css`
       flex-direction: column;
       align-items: center;
       justify-content: flex-start;
-      width: 100%;
 
       margin: 0 auto;
-      max-width: 450px;
-      max-height: 100%;
+      max-width: 100cqmin;
+      max-height: 100cqmax;
       aspect-ratio: 9/16;
 
       overflow: auto;
@@ -340,51 +322,5 @@ export const styles = css`
     #content #history #history-list {
       transform: none;
     }
-  }
-
-  #edit-history-buttons {
-    display: flex;
-    justify-content: space-between;
-    width: 100%;
-
-    > button {
-      align-items: center;
-      background: none;
-      border-radius: var(--bb-grid-size-2);
-      border: none;
-      color: var(--bb-neutral-700);
-      cursor: pointer;
-      display: flex;
-      font: 400 var(--bb-label-large) / var(--bb-label-line-height-large)
-        var(--bb-font-family);
-      padding: var(--bb-grid-size) var(--bb-grid-size-2);
-      transition:
-        background-color 100ms,
-        color 100ms;
-
-      > .g-icon {
-        font-size: calc(var(--bb-label-large) + 4px);
-        font-variation-settings:
-          "FILL" 0,
-          "wght" 600,
-          "GRAD" 0,
-          "opsz" 48;
-        margin-right: var(--bb-grid-size);
-      }
-
-      &#toggle-edit-history:hover {
-        background: var(--bb-neutral-100);
-      }
-      &#close-edit-history:hover {
-        color: var(--bb-neutral-900);
-      }
-    }
-  }
-
-  bb-revision-history-panel {
-    width: 100%;
-    margin-top: var(--bb-grid-size-4);
-    padding-bottom: var(--bb-grid-size-4);
-    margin-bottom: calc(var(--bb-grid-size-4) * -1);
   }
 `;

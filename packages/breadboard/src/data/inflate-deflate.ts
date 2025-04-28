@@ -82,7 +82,11 @@ export const inflateData = async (
         }
       }
     } else if (isStoredData(value)) {
-      if (value.storedData.handle.startsWith("https://")) {
+      if (
+        (value.storedData.handle.startsWith("https://") ||
+          value.storedData.handle.startsWith("http://")) &&
+        !inflateToFileData
+      ) {
         return value;
       }
       if (inflateToFileData && store.transformer && graphUrl) {

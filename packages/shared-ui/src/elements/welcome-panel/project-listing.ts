@@ -17,6 +17,7 @@ import {
   GraphBoardServerRefreshEvent,
   GraphBoardServerRenewAccessRequestEvent,
   GraphBoardServerSelectionChangeEvent,
+  InputEnterEvent,
 } from "../../events/events";
 import { map } from "lit/directives/map.js";
 import { until } from "lit/directives/until.js";
@@ -29,6 +30,17 @@ import type { HomepageSearchButton } from "./homepage-search-button.js";
 import { icons } from "../../styles/icons.js";
 import "./gallery.js";
 import {
+  Connection,
+  fetchAvailableConnections,
+} from "../connection/connection-server.js";
+import { consume } from "@lit/context";
+
+import {
+  environmentContext,
+  type Environment,
+} from "../../contexts/environment.js";
+import { Task, TaskStatus } from "@lit/task";
+import {
   agentspaceUrlContext,
   type AgentspaceFlowContent,
 } from "../../contexts/agentspace-url-context.js";
@@ -36,7 +48,13 @@ import { consume } from "@lit/context";
 
 const MODE_KEY = "bb-project-listing-mode";
 const OVERFLOW_MENU_CLEARANCE = 4;
-const FORCE_NO_BOARDS = new URL(document.URL).searchParams.has("forceNoBoards");
+
+const URL_PARAMS = new URL(document.URL).searchParams;
+const FORCE_NO_BOARDS = URL_PARAMS.has("forceNoBoards");
+const SHOW_GOOGLE_DRIVE_DEBUG_PANEL = URL_PARAMS.has("driveDebug");
+if (SHOW_GOOGLE_DRIVE_DEBUG_PANEL) {
+  import("../google-drive/google-drive-debug-panel.js");
+}
 
 @customElement("bb-project-listing")
 export class ProjectListing extends LitElement {
@@ -86,10 +104,15 @@ export class ProjectListing extends LitElement {
   @property()
   accessor recencyType: "local" | "session" = "session";
 
+  @consume({ context: environmentContext })
+  accessor environment!: Environment;
+
   @consume({ context: agentspaceUrlContext })
   accessor agentspaceFlowContent!: AgentspaceFlowContent;
 
   #selectedIndex = 0;
+
+  #availableConnections?: Task<readonly unknown[], Connection[]>;
 
   static styles = [
     icons,
@@ -126,6 +149,7 @@ export class ProjectListing extends LitElement {
               var(--bb-title-line-height-xx-large) var(--bb-font-family);
             padding: 0;
             margin: 76px 0 0 0;
+            text-align: center;
 
             & .gradient {
               background: linear-gradient(
@@ -706,7 +730,8 @@ export class ProjectListing extends LitElement {
       this.selectedLocation
     );
 
-    return html` <div id="wrapper" ${ref(this.#wrapperRef)}>
+    return html`
+      <div id="wrapper" ${ref(this.#wrapperRef)}>
         <section id="hero">
            <bb-flowgen-homepage-panel></bb-flowgen-homepage-panel>
         </section>
@@ -815,119 +840,169 @@ export class ProjectListing extends LitElement {
             }}
           >
             ${until(
-              this.#boardServerContents.then((store) => {
-                if (!store) {
-                  return nothing;
-                }
+              this.#boardServerContents.then(
+                (store) => {
+                  if (!store) {
+                    return nothing;
+                  }
 
-                const { permission } = store;
-                const filter = this.filter
-                  ? new RegExp(this.filter, "gim")
-                  : undefined;
-                const allItems = [...store.items]
-                  .filter(
-                    ([name, item]) =>
-                      !filter ||
-                      (item.title && filter.test(item.title)) ||
-                      (name && filter.test(name))
-                  )
-                  .sort(([, dataA], [, dataB]) => {
-                    // Sort by recency.
-                    const indexA = this.#recentItems.indexOf(dataA.url);
-                    const indexB = this.#recentItems.indexOf(dataB.url);
-                    if (indexA !== -1 && indexB === -1) {
-                      return -1;
-                    }
-                    if (indexA === -1 && indexB !== -1) {
-                      return 1;
-                    }
+                  const { permission } = store;
+                  const filter = this.filter
+                    ? new RegExp(this.filter, "gim")
+                    : undefined;
+                  const allItems = [...store.items]
+                    .filter(
+                      ([name, item]) =>
+                        !filter ||
+                        (item.title && filter.test(item.title)) ||
+                        (name && filter.test(name))
+                    )
+                    .sort(([, dataA], [, dataB]) => {
+                      // Sort by recency.
+                      const indexA = this.#recentItems.indexOf(dataA.url);
+                      const indexB = this.#recentItems.indexOf(dataB.url);
+                      if (indexA !== -1 && indexB === -1) {
+                        return -1;
+                      }
+                      if (indexA === -1 && indexB !== -1) {
+                        return 1;
+                      }
 
-                    if (indexA !== -1 && indexB !== -1) {
-                      return indexA - indexB;
-                    }
+                      if (indexA !== -1 && indexB !== -1) {
+                        return indexA - indexB;
+                      }
 
-                    // If both are unknown for recency, choose those that are
-                    // mine.
-                    if (dataA.mine && !dataB.mine) {
-                      return -1;
-                    }
+                      // If both are unknown for recency, choose those that are
+                      // mine.
+                      if (dataA.mine && !dataB.mine) {
+                        return -1;
+                      }
 
-                    if (!dataA.mine && dataB.mine) {
-                      return 1;
-                    }
+                      if (!dataA.mine && dataB.mine) {
+                        return 1;
+                      }
 
-                    return 0;
-                  });
-                const myItems = allItems.filter(([, item]) => item.mine);
-                const sampleItems = allItems.filter(([, item]) =>
-                  (item.tags ?? []).includes("featured")
-                );
-                const boardListings = [
-                  myItems.length && !FORCE_NO_BOARDS
-                    ? html`
-                        <div class="gallery-wrapper">
-                          <bb-gallery
-                            .items=${myItems}
-                            .pageSize=${8}
-                          ></bb-gallery>
-                        </div>
-                      `
-                    : html`
-                        <div id="no-projects-panel">
-                          <p>${Strings.from("LABEL_NO_PROJECTS_FOUND")}</p>
-                          ${this.#renderCreateNewButton()}
-                        </div>
-                      `,
-                  html`
-                    <div class="gallery-wrapper">
-                      <h2 class="gallery-title">
-                        ${Strings.from("LABEL_SAMPLE_GALLERY_TITLE")}
-                      </h2>
-                      <p class="gallery-description">
-                        ${Strings.from("LABEL_SAMPLE_GALLERY_DESCRIPTION")}
-                      </p>
-                      <bb-gallery
-                        .items=${sampleItems}
-                        .pageSize=${/* Unlimited */ -1}
-                      ></bb-gallery>
-                    </div>
-                  `,
-                ];
+                      return 0;
+                    });
+                  const myItems = allItems.filter(([, item]) => item.mine);
+                  const sampleItems = allItems.filter(([, item]) =>
+                    (item.tags ?? []).includes("featured")
+                  );
+                  const boardListings = [
+                    myItems.length && !FORCE_NO_BOARDS
+                      ? html`
+                          <div class="gallery-wrapper">
+                            <bb-gallery
+                              .items=${myItems}
+                              .pageSize=${8}
+                            ></bb-gallery>
+                          </div>
+                        `
+                      : html`
+                          <div id="no-projects-panel">
+                            <p>${Strings.from("LABEL_NO_PROJECTS_FOUND")}</p>
+                            ${this.#renderCreateNewButton()}
+                          </div>
+                        `,
+                    html`
+                      <div class="gallery-wrapper">
+                        <h2 class="gallery-title">
+                          ${Strings.from("LABEL_SAMPLE_GALLERY_TITLE")}
+                        </h2>
+                        <p class="gallery-description">
+                          ${Strings.from("LABEL_SAMPLE_GALLERY_DESCRIPTION")}
+                        </p>
+                        <bb-gallery
+                          .items=${sampleItems}
+                          .pageSize=${/* Unlimited */ -1}
+                        ></bb-gallery>
+                      </div>
+                    `,
+                  ];
 
-                return permission === "granted"
-                  ? [
-                      boardListings,
-                      myItems.length && !FORCE_NO_BOARDS
-                        ? html`
-                            <div id="buttons">
-                              <div id="create-new-button-container">
-                                ${this.#renderCreateNewButton()}
+                  return permission === "granted"
+                    ? [
+                        boardListings,
+                        myItems.length && !FORCE_NO_BOARDS
+                          ? html`
+                              <div id="buttons">
+                                <div id="create-new-button-container">
+                                  ${this.#renderCreateNewButton()}
+                                </div>
                               </div>
-                            </div>
-                          `
-                        : nothing,
-                    ]
-                  : html`<div id="renew-access">
-                      <span
-                        >${Strings.from(
-                          "LABEL_ACCESS_EXPIRED_PROJECT_SERVER"
-                        )}</span
-                      >
-                      <button
-                        id="request-renewed-access"
-                        @click=${() => {
-                          this.dispatchEvent(
-                            new GraphBoardServerRenewAccessRequestEvent(
-                              this.selectedBoardServer,
-                              this.selectedLocation
-                            )
-                          );
-                        }}
-                      >
-                        ${Strings.from("COMMAND_RENEW_ACCESS")}
-                      </button>
-                    </div>`;
-              }),
+                            `
+                          : nothing,
+                      ]
+                    : html`<div id="renew-access">
+                        <span
+                          >${Strings.from(
+                            "LABEL_ACCESS_EXPIRED_PROJECT_SERVER"
+                          )}</span
+                        >
+                        <button
+                          id="request-renewed-access"
+                          @click=${() => {
+                            this.dispatchEvent(
+                              new GraphBoardServerRenewAccessRequestEvent(
+                                this.selectedBoardServer,
+                                this.selectedLocation
+                              )
+                            );
+                          }}
+                        >
+                          ${Strings.from("COMMAND_RENEW_ACCESS")}
+                        </button>
+                      </div>`;
+                },
+                async (error) => {
+                  if (error.message.includes("No folder ID or access token")) {
+
+                    if (!this.#availableConnections) {
+                      this.#availableConnections = fetchAvailableConnections(
+                        this,
+                        () => this.environment,
+                        true
+                      );
+                    }
+                    if (
+                      this.#availableConnections!.status === TaskStatus.INITIAL
+                    ) {
+                      this.#availableConnections!.run();
+                    }
+
+                    const gdriveConnectionID = "google-drive-limited";
+                    return this.#availableConnections!.render({
+                      pending: () => html`<p>Loading connections ...</p>`,
+                      error: () => html`<p>Error loading connections</p>`,
+                      complete: (result: Connection[]) => {
+                        const gdrive = (result as Array<Object>).find(
+                          (connection: any) =>
+                            connection.id === gdriveConnectionID
+                        );
+                        if (gdrive) {
+                          return html`<div>
+                            <p class="loading-message">
+                              You haven't yet granted us Google Drive
+                              Permissions, please sign in into Google Drive in
+                              order to be able to create and save your Flows.
+                            </p>
+                            <bb-connection-signin
+                              .connection=${gdrive}
+                                        @bbtokengranted=${({
+                              token,
+                              expiresIn,
+                            }: HTMLElementEventMap["bbtokengranted"]) => {
+                            this.dispatchEvent(new InputEnterEvent(this.id, {clientId: gdriveConnectionID, secret: token, expiresIn}, false));
+                            
+                            }}
+                            ></bb-connection-signin>
+                          </div>`;
+                        }
+                      },
+                    });
+                  }
+                }
+              ),
               html`<div id="loading-message">
                 ${Strings.from("STATUS_LOADING")}
               </div>`

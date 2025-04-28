@@ -4,12 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  addSandboxedRunModule,
-  createGraphStore,
-  createLoader,
-  Kit,
-} from "@google-labs/breadboard";
+import { createGraphStore, createLoader, Kit } from "@google-labs/breadboard";
 import { Board } from "./board.js";
 import { Run } from "./run.js";
 import { Edit } from "./edit.js";
@@ -21,27 +16,19 @@ import {
   getBoardServers,
   migrateIDBGraphProviders,
   migrateRemoteGraphProviders,
-  migrateExampleGraphProviders,
   migrateFileSystemProviders,
   legacyGraphProviderExists,
   BoardServerAwareDataStore,
 } from "@breadboard-ai/board-server-management";
 
-import { loadKits, registerLegacyKits } from "../utils/kit-loader";
-
 export * as Events from "./events.js";
 export * as Types from "./types.js";
 
-import { sandbox } from "../sandbox";
 import { Select } from "./select.js";
 import { StateManager } from "./state.js";
 import { getDataStore } from "@breadboard-ai/data-store";
 import { createSideboardRuntimeProvider } from "./sideboard-runtime.js";
 import { SideBoardRuntime } from "@breadboard-ai/shared-ui/sideboards/types.js";
-
-function withRunModule(kits: Kit[]): Kit[] {
-  return addSandboxedRunModule(sandbox, kits);
-}
 
 export async function create(config: RuntimeConfig): Promise<{
   board: Board;
@@ -53,13 +40,8 @@ export async function create(config: RuntimeConfig): Promise<{
   state: StateManager;
   util: typeof Util;
 }> {
-  const kits = withRunModule(loadKits());
-
-  const skipPlaygroundExamples = import.meta.env.MODE !== "development";
-  let servers = await getBoardServers(
-    config.tokenVendor,
-    skipPlaygroundExamples
-  );
+  const kits = config.kits;
+  let servers = await getBoardServers(config.tokenVendor);
 
   // First run - set everything up.
   if (servers.length === 0) {
@@ -70,7 +52,6 @@ export async function create(config: RuntimeConfig): Promise<{
     if (await legacyGraphProviderExists()) {
       await migrateIDBGraphProviders();
       await migrateRemoteGraphProviders();
-      await migrateExampleGraphProviders();
       await migrateFileSystemProviders();
     }
 
@@ -88,7 +69,6 @@ export async function create(config: RuntimeConfig): Promise<{
     fileSystem: config.fileSystem,
   };
   const graphStore = createGraphStore(graphStoreArgs);
-  registerLegacyKits(graphStore);
 
   servers.forEach((server) => {
     server.ready().then(() => {

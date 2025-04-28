@@ -28,7 +28,7 @@ async function callGenWebpage(
   instruction: string,
   content: LLMContent[],
   renderMode: string
-): Promise<LLMContent> {
+): Promise<Outcome<LLMContent>> {
   const executionInputs: ContentMap = {};
   const inputParameters: string[] = [];
   let i = 0;
@@ -55,6 +55,17 @@ async function callGenWebpage(
             {
               mimetype: part.inlineData.mimeType,
               data: part.inlineData.data,
+            },
+          ],
+        };
+      } else if ("storedData" in part) {
+        const key = `media_${i}`;
+        inputParameters.push(key);
+        executionInputs[key] = {
+          chunks: [
+            {
+              mimetype: "url/" + part.storedData.mimeType,
+              data: btoa(unescape(encodeURIComponent(part.storedData.handle))),
             },
           ],
         };
@@ -87,25 +98,24 @@ async function callGenWebpage(
   console.log("response");
   console.log(response);
   if (!ok(response)) {
-    return toLLMContent("Webpage generation failed: " + response.$error);
+    return err("Webpage generation failed: " + response.$error);
   }
 
   let returnVal;
   let outputChunk = response.executionOutputs[OUTPUT_KEY];
   if (!outputChunk) {
-    return toLLMContent("Error: Malformed response. No page generated.");
+    return err("Error: Malformed response. No page generated.");
   }
   const mimetype = outputChunk.chunks[0].mimetype;
   const base64Data = outputChunk.chunks[0].data;
   const data = base64DecodeNonAsciiStandard(base64Data);
-  console.log(data);
   if (mimetype == "text/html") {
     returnVal = toLLMContentInline(mimetype, data);
   } else {
     returnVal = toLLMContent(data);
   }
   if (!returnVal) {
-    return toLLMContent("Error: No webpage returned from backend");
+    return err("Error: No webpage returned from backend");
   }
   return returnVal;
 }

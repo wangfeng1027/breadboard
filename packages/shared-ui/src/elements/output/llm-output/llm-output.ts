@@ -38,8 +38,10 @@ import "./export-toolbar.js";
 import { styleMap } from "lit/directives/style-map.js";
 import { getGlobalColor } from "../../../utils/color.js";
 import {
+  convertShareUriToEmbedUri,
   convertWatchUriToEmbedUri,
   isEmbedUri,
+  isShareUri,
   isWatchUri,
 } from "../../../utils/youtube.js";
 import { SIGN_IN_CONNECTION_ID } from "../../../utils/signin-adapter.js";
@@ -59,6 +61,9 @@ export class LLMOutput extends LitElement {
 
   @property()
   accessor showExportControls = false;
+
+  @property()
+  accessor showPDFControls = true;
 
   @property()
   accessor supportedExportControls = { drive: false, clipboard: false };
@@ -111,6 +116,23 @@ export class LLMOutput extends LitElement {
     :host([lite]) {
       // border: 1px solid var(--output-lite-border-color, var(--bb-neutral-100));
       background: var(--output-lite-background-color, var(--bb-neutral-0));
+    }
+
+    .loading {
+      display: flex;
+      align-items: center;
+      height: 20px;
+      font: normal var(--bb-body-small) / var(--bb-body-line-height-small)
+        var(--bb-font-family);
+
+      &::before {
+        content: "";
+        width: 20px;
+        height: 20px;
+        background: url(/images/progress-ui.svg) center center / 20px 20px
+          no-repeat;
+        margin-right: var(--bb-grid-size-2);
+      }
     }
 
     .content {
@@ -170,6 +192,7 @@ export class LLMOutput extends LitElement {
       }
 
       & .empty-text-part {
+        color: var(--bb-neutral-900);
         margin: 0;
         padding: 0;
         border-radius: var(--bb-grid-size-16);
@@ -431,10 +454,20 @@ export class LLMOutput extends LitElement {
                   this.#partDataURLs.set(key, url);
                   return url;
                 });
+            } else if (
+              part.inlineData.data === "" &&
+              !part.inlineData.mimeType.startsWith("text")
+            ) {
+              partDataURL = Promise.resolve("");
             }
 
             const tmpl = partDataURL.then((url: string) => {
               if (part.inlineData.mimeType.startsWith("image")) {
+                if (part.inlineData.data === "") {
+                  this.#outputLoaded();
+                  return html`No image provided`;
+                }
+
                 return cache(html`
                   ${canCopy && part.inlineData.mimeType === "image/png"
                     ? html` <div class="copy-image-to-clipboard">
@@ -550,10 +583,12 @@ export class LLMOutput extends LitElement {
                 const pdfHandler = fetch(url)
                   .then((r) => r.arrayBuffer())
                   .then((pdfData) => {
-                    this.#outputLoaded();
                     return cache(
                       html`<bb-pdf-viewer
-                        .showControls=${true}
+                        @pdfinitialrender=${() => {
+                          this.#outputLoaded();
+                        }}
+                        .showControls=${this.showPDFControls}
                         .data=${pdfData}
                       ></bb-pdf-viewer>`
                     );
@@ -584,13 +619,24 @@ export class LLMOutput extends LitElement {
                 return response.text();
               };
               if (mimeType.startsWith("image")) {
-                value = html`<img
-                  @load=${() => {
+                const imgData = new Promise((resolve) => {
+                  const image = new Image();
+                  image.setAttribute("alt", url);
+                  image.onload = () => {
                     this.#outputLoaded();
-                  }}
-                  src="${url}"
-                  alt="LLM Image"
-                />`;
+                    resolve(image);
+                  };
+                  image.onerror = () => {
+                    this.#outputLoaded();
+                    resolve(
+                      html`<span class="empty-text-part"
+                        >No image provided</span
+                      >`
+                    );
+                  };
+                  image.src = url;
+                });
+                value = html`${until(imgData)}`;
               }
               if (mimeType.startsWith("audio")) {
                 value = html`<audio
@@ -620,19 +666,20 @@ export class LLMOutput extends LitElement {
                     class="html-view"
                   ></iframe>`;
                 } else {
-                  value = html`<div class="plain-text">
-                    ${until(getData())}
-                  </div>`;
+                  // prettier-ignore
+                  value = html`<div class="plain-text">${until(getData())}</div>`;
                 }
               }
               if (part.storedData.mimeType === "application/pdf") {
                 const pdfHandler = fetch(url)
                   .then((r) => r.arrayBuffer())
                   .then((pdfData) => {
-                    this.#outputLoaded();
                     return cache(
                       html`<bb-pdf-viewer
-                        .showControls=${true}
+                        @pdfinitialrender=${() => {
+                          this.#outputLoaded();
+                        }}
+                        .showControls=${this.showPDFControls}
                         .data=${pdfData}
                       ></bb-pdf-viewer>`
                     );
@@ -652,6 +699,8 @@ export class LLMOutput extends LitElement {
                   let uri: string | null = part.fileData.fileUri;
                   if (isWatchUri(uri)) {
                     uri = convertWatchUriToEmbedUri(uri);
+                  } else if (isShareUri(uri)) {
+                    uri = convertShareUriToEmbedUri(uri);
                   } else if (!isEmbedUri(uri)) {
                     uri = null;
                   }

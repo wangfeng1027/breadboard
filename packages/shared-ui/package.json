@@ -57,7 +57,8 @@
   "scripts": {
     "prepack": "npm run build",
     "build": "wireit",
-    "build:tsc": "wireit"
+    "build:tsc": "wireit",
+    "update-sideboards": "wireit"
   },
   "wireit": {
     "build": {
@@ -92,6 +93,9 @@
         "!dist/**/*.min.js{,.map}"
       ],
       "clean": "if-file-deleted"
+    },
+    "update-sideboards": {
+      "command": "cp -f src/sideboards/sideboards-bgl/*.bgl.json dist/sideboards/sideboards-bgl"
     }
   },
   "repository": {
@@ -132,6 +136,7 @@
     "@breadboard-ai/connection-client": "0.2.0",
     "@breadboard-ai/data-store": "0.3.2",
     "@breadboard-ai/embedded-board-server": "0.0.1",
+    "@breadboard-ai/google-drive-kit": "0.5.1",
     "@breadboard-ai/jsandbox": "0.5.0",
     "@breadboard-ai/types": "0.6.0",
     "@codemirror/autocomplete": "^6.18.6",
@@ -153,7 +158,7 @@
     "@material/web": "^2.3.0",
     "@pixi/math-extras": "^7.4.3",
     "@types/gapi": "^0.0.47",
-    "@types/gapi.drive": "^0.0.9",
+    "@types/gapi.client.drive-v3": "^0.0.5",
     "@types/google.picker": "^0.0.50",
     "@typescript/vfs": "^1.6.1",
     "@valtown/codemirror-continue": "^2.3.1",

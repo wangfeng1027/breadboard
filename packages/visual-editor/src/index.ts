@@ -22,6 +22,7 @@ import { map } from "lit/directives/map.js";
 import { customElement, property, state } from "lit/decorators.js";
 import { LitElement, html, HTMLTemplateResult, nothing } from "lit";
 import {
+  asBase64,
   createRunObserver,
   GraphDescriptor,
   BoardServer,
@@ -40,6 +41,10 @@ import {
   EditHistoryCreator,
   envFromGraphDescriptor,
   FileSystem,
+  Kit,
+  addSandboxedRunModule,
+  NodeHandlerContext,
+  Outcome,
 } from "@google-labs/breadboard";
 import {
   createFileSystemBackend,
@@ -69,6 +74,7 @@ import {
 
 import { sandbox } from "./sandbox";
 import {
+  AssetMetadata,
   GraphIdentifier,
   GraphTheme,
   InputValues,
@@ -126,12 +132,9 @@ export type MainArguments = {
    * Whether or not this instance of requires sign in.
    */
   requiresSignin?: boolean;
-};
-
-type SaveAsConfiguration = {
-  title: string;
-  graph: GraphDescriptor;
-  isNewBoard: boolean;
+  kits?: Kit[];
+  graphStorePreloader?: (graphStore: MutableGraphStore) => void;
+  moduleInvocationFilter?: (context: NodeHandlerContext) => Outcome<void>;
 };
 
 type BoardOverlowMenuConfiguration = {
@@ -210,10 +213,6 @@ export class Main extends LitElement {
   @state()
   accessor showUserOverflowMenu = false;
   #userOverflowMenuConfiguration: UserOverflowMenuConfiguration | null = null;
-
-  @state()
-  accessor showSaveAsDialog = false;
-  #saveAsState: SaveAsConfiguration | null = null;
 
   @state()
   accessor showNodeConfigurator = false;
@@ -388,14 +387,6 @@ export class Main extends LitElement {
       },
     },
     {
-      title: Strings.from("COMMAND_SAVE_PROJECT_AS"),
-      name: "save-board-as",
-      icon: "save",
-      callback: () => {
-        this.showSaveAsDialog = true;
-      },
-    },
-    {
       title: Strings.from("COMMAND_EDIT_PROJECT_INFORMATION"),
       name: "edit-board-information",
       icon: "edit",
@@ -561,6 +552,11 @@ export class Main extends LitElement {
           proxy: this.#proxy,
           fileSystem: this.#fileSystem,
           builtInBoardServers: [createA2Server()],
+          kits: addSandboxedRunModule(
+            sandbox,
+            config.kits || [],
+            config.moduleInvocationFilter
+          ),
         });
       })
       .then((runtime) => {
@@ -569,6 +565,10 @@ export class Main extends LitElement {
         this.#boardServers = runtime.board.getBoardServers() || [];
 
         this.sideBoardRuntime = runtime.sideboards;
+
+        // This is currently used only for legacy graph kits (Agent,
+        // Google Drive).
+        config.graphStorePreloader?.(this.#graphStore);
 
         this.sideBoardRuntime.addEventListener("empty", () => {
           this.canRun = true;
@@ -975,7 +975,6 @@ export class Main extends LitElement {
     this.boardEditOverlayInfo = null;
     this.showSettingsOverlay = false;
     this.showBoardServerAddOverlay = false;
-    this.showSaveAsDialog = false;
     this.showNodeConfigurator = false;
     this.showCommentEditor = false;
   }
@@ -1200,11 +1199,6 @@ export class Main extends LitElement {
     if (evt.key === "s" && isCtrlCommand) {
       evt.preventDefault();
 
-      if (evt.shiftKey) {
-        this.showSaveAsDialog = true;
-        return;
-      }
-
       let saveMessage = Strings.from("STATUS_PROJECT_SAVED");
       if (this.#nodeConfiguratorRef.value && this.#nodeConfiguratorData) {
         this.#nodeConfiguratorRef.value.processData();
@@ -1409,7 +1403,7 @@ export class Main extends LitElement {
     tabToSave = this.tab,
     message = Strings.from("STATUS_PROJECT_SAVED"),
     ackUser = true,
-    showSaveAsIfNeeded = true,
+    _showSaveAsIfNeeded = true,
     timeout = 0
   ) {
     if (!tabToSave) {
@@ -1449,9 +1443,6 @@ export class Main extends LitElement {
     }
 
     if (!this.#runtime.board.canSave(tabToSave.id)) {
-      if (showSaveAsIfNeeded) {
-        this.showSaveAsDialog = true;
-      }
       return;
     }
 
@@ -2345,7 +2336,6 @@ export class Main extends LitElement {
       this.showSettingsOverlay ||
       this.showFirstRun ||
       this.showBoardServerAddOverlay ||
-      this.showSaveAsDialog ||
       this.showNodeConfigurator ||
       this.showCommentEditor ||
       this.showOpenBoardOverlay ||
@@ -2599,43 +2589,6 @@ export class Main extends LitElement {
             BreadboardUI.Types.SETTINGS_TYPE.GENERAL,
             "Show additional sources"
           )?.value ?? false;
-
-        let saveAsDialogOverlay: HTMLTemplateResult | symbol = nothing;
-        if (this.showSaveAsDialog) {
-          saveAsDialogOverlay = html`<bb-save-as-overlay
-            .panelTitle=${this.#saveAsState?.title ??
-            Strings.from("COMMAND_SAVE_PROJECT_AS")}
-            .boardServers=${this.#boardServers}
-            .selectedBoardServer=${this.selectedBoardServer}
-            .selectedLocation=${this.selectedLocation}
-            .showAdditionalSources=${showAdditionalSources}
-            .graph=${structuredClone(
-              this.#saveAsState?.graph ?? this.tab?.graph
-            )}
-            .isNewBoard=${this.#saveAsState?.isNewBoard ?? false}
-            @bboverlaydismissed=${() => {
-              this.showSaveAsDialog = false;
-            }}
-            @bbgraphboardserversaveboard=${async (
-              evt: BreadboardUI.Events.GraphBoardServerSaveBoardEvent
-            ) => {
-              this.showSaveAsDialog = false;
-
-              const { boardServerName, location, fileName, graph } = evt;
-              await this.#attemptBoardSaveAs(
-                boardServerName,
-                location,
-                fileName,
-                graph,
-                undefined,
-                undefined,
-                { role: "user" }
-              );
-            }}
-          ></bb-save-as-overlay>`;
-
-          this.#saveAsState = null;
-        }
 
         const canRunNode = this.#nodeConfiguratorData
           ? topGraphResult.nodeInformation.canRunNode(
@@ -3076,17 +3029,6 @@ export class Main extends LitElement {
 
                 case "save": {
                   this.#attemptBoardSave(tab);
-                  break;
-                }
-
-                case "save-as": {
-                  this.#saveAsState = {
-                    title: Strings.from("COMMAND_SAVE_PROJECT_AS"),
-                    graph: tab.graph,
-                    isNewBoard: false,
-                  };
-
-                  this.showSaveAsDialog = true;
                   break;
                 }
 
@@ -3691,9 +3633,6 @@ export class Main extends LitElement {
               @bbsave=${() => {
                 this.#attemptBoardSave();
               }}
-              @bbsaveas=${() => {
-                this.showSaveAsDialog = true;
-              }}
               @bbstart=${(evt: BreadboardUI.Events.StartEvent) => {
                 this.#attemptBoardLoad(evt);
               }}
@@ -3896,6 +3835,16 @@ export class Main extends LitElement {
 
                 // TODO: Show some status.
                 if (evt.theme.splashScreen) {
+                  if (isStoredData(evt.theme.splashScreen)) {
+                    // Fetch the stored data so that we can add to the graph.
+                    const response = await fetch(
+                      evt.theme.splashScreen.storedData.handle
+                    );
+                    const imgBlob = await response.blob();
+                    const data = await asBase64(imgBlob);
+                    const mimeType = imgBlob.type;
+                    evt.theme.splashScreen = { inlineData: { data, mimeType } };
+                  }
                   const data: LLMContent[] = [
                     {
                       role: "user",
@@ -3980,14 +3929,20 @@ export class Main extends LitElement {
 
                 await Promise.all(
                   evt.assets.map((asset) => {
+                    const metadata: AssetMetadata = {
+                      title: asset.name,
+                      type: asset.type,
+                      visual: asset.visual,
+                    };
+
+                    if (asset.subType) {
+                      metadata.subType = asset.subType;
+                    }
+
                     return projectState?.organizer.addGraphAsset({
-                      path: asset.name,
-                      metadata: {
-                        title: asset.name,
-                        type: "file",
-                        visual: asset.visual,
-                      },
-                      data: [asset.content],
+                      path: asset.path,
+                      metadata,
+                      data: [asset.data],
                     });
                   })
                 );
@@ -4112,7 +4067,7 @@ export class Main extends LitElement {
               @bbgraphreplace=${async (
                 evt: BreadboardUI.Events.GraphReplaceEvent
               ) => {
-                this.#runtime.edit.replaceGraph(
+                await this.#runtime.edit.replaceGraph(
                   this.tab,
                   evt.replacement,
                   evt.creator
@@ -4435,7 +4390,6 @@ export class Main extends LitElement {
           boardServerAddOverlay,
           nodeConfiguratorOverlay,
           commentOverlay,
-          saveAsDialogOverlay,
           openDialogOverlay,
           commandPalette,
           modulePalette,

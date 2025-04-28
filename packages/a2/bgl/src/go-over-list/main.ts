@@ -15,6 +15,7 @@ import { Runtime } from "./runtime";
 import { ParallelStrategist } from "./parallel-strategist";
 import { SequentialStrategist } from "./sequential-strategist";
 import { ThinkStrategist } from "./think-strategist";
+import { ConversationalThinkStrategist } from "./conversational-think-strategist";
 import {
   type Task,
   type Plan,
@@ -42,9 +43,11 @@ const STRATEGISTS: Strategist[] = [
   new ParallelStrategist(),
   new SequentialStrategist(),
   new ThinkStrategist(),
+  new ConversationalThinkStrategist(),
 ];
 
-function findStrategist(name: string): Strategist | undefined {
+function findStrategist(name?: string): Strategist | undefined {
+  if (!name) return STRATEGISTS[0];
   return STRATEGISTS.find((strategist) => strategist.name === name);
 }
 

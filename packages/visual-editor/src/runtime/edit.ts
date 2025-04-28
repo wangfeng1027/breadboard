@@ -965,6 +965,8 @@ export class Edit extends EventTarget {
     }
 
     tab.graph.title = title;
+    tab.graph.metadata ??= {};
+    tab.graph.metadata.userModified = true;
     this.dispatchEvent(new RuntimeBoardEditEvent(null, [], false));
   }
 
@@ -975,6 +977,8 @@ export class Edit extends EventTarget {
     }
 
     tab.graph.description = description;
+    tab.graph.metadata ??= {};
+    tab.graph.metadata.userModified = true;
     this.dispatchEvent(new RuntimeBoardEditEvent(null, [], false));
   }
 
@@ -1853,7 +1857,7 @@ export class Edit extends EventTarget {
       this.dispatchEvent(new RuntimeErrorEvent("Unable to find board to edit"));
       return;
     }
-    editableGraph.edit(
+    return editableGraph.edit(
       [{ type: "replacegraph", replacement, creator }],
       `Replace graph`
     );

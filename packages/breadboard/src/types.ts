@@ -105,6 +105,11 @@ export type BehaviorSchema =
    */
   | "hint-controller"
   /**
+   * In combination with "config", Indicates that this port is part of the
+   * advanced configuration.
+   */
+  | "hint-advanced"
+  /**
    * Hints that the text is short (e.g. a query) and needs a single line treatment.
    */
   | "hint-single-line"
@@ -328,6 +333,11 @@ export type NodeDescriberContext = {
    */
   graphStore?: MutableGraphStore;
   fileSystem?: FileSystem;
+  /**
+   * A hint that this describing operation is for a type, which allows the
+   * describer to avoid doing extra work handling dynamic schemas, etc.
+   */
+  asType?: boolean;
 };
 
 export type NodeDescriberWires = {

@@ -8,10 +8,6 @@
       "types": "./build/src/index.d.ts",
       "default": "./build/src/index.js"
     },
-    "./preview.js": {
-      "types": "./build/preview.d.ts",
-      "default": "./build/preview.js"
-    },
     "./config.js": {
       "types": "./build/src/config.d.ts",
       "default": "./build/src/config.js"
@@ -19,14 +15,6 @@
     "./public": "./public",
     "./index.html": "./index.html",
     "./preview.html": "./preview.html",
-    "./embed.js": "./build/embed.js",
-    "./core-kit.js": "./build/core-kit.js",
-    "./json-kit.js": "./build/json-kit.js",
-    "./template-kit.js": "./build/template-kit.js",
-    "./providers": {
-      "types": "./build/providers/types.d.ts",
-      "default": "./build/providers/types.js"
-    },
     "./vite": "./build/src/configure-assets.js",
     "./build-info": "./build/src/build-info.js",
     "./bootstrap": "./build/src/bootstrap.js"
@@ -42,7 +30,6 @@
     "build": "wireit",
     "build:vite": "wireit",
     "build:tsc": "wireit",
-    "copy-example-boards": "wireit",
     "copy-bbrt-assets": "wireit"
   },
   "wireit": {
@@ -90,7 +77,6 @@
       },
       "dependencies": [
         "typescript-files-and-deps",
-        "../example-boards#build",
         "copy-pyoide-assets",
         "update-sandbox-runtime",
         {
@@ -129,10 +115,6 @@
         },
         {
           "script": "update-sandbox-runtime",
-          "cascade": false
-        },
-        {
-          "script": "copy-example-boards",
           "cascade": false
         },
         {
@@ -179,18 +161,6 @@
       "files": [
         "vite.config.ts",
         ".env"
-      ]
-    },
-    "copy-example-boards": {
-      "command": "tsx src/copy-example-boards.ts",
-      "dependencies": [
-        "../example-boards#build"
-      ],
-      "files": [
-        "src/copy-example-boards.ts"
-      ],
-      "output": [
-        "public/example-boards/*.json"
       ]
     },
     "copy-bbrt-assets": {
@@ -280,7 +250,6 @@
     "@breadboard-ai/board-server-utils": "0.1.9",
     "@breadboard-ai/build": "0.12.1",
     "@breadboard-ai/data-store": "0.3.2",
-    "@breadboard-ai/example-boards": "0.4.1",
     "@breadboard-ai/google-drive-kit": "0.5.1",
     "@breadboard-ai/idb-board-server": "1.19.3",
     "@breadboard-ai/jsandbox": "0.5.0",
@@ -300,7 +269,7 @@
     "@lit/context": "^1.1.4",
     "@lit/task": "^1.0.2",
     "@types/gapi": "^0.0.47",
-    "@types/gapi.drive": "^0.0.9",
+    "@types/gapi.client.drive-v3": "^0.0.5",
     "@types/google.picker": "^0.0.50",
     "@types/jszip": "^3.4.1",
     "ajv": "^8.17.1",

@@ -7,6 +7,7 @@ import {
   InspectableGraph,
   isLLMContent,
   isLLMContentArray,
+  isStoredData,
   isTextCapabilityPart,
   MainGraphIdentifier,
   MutableGraphStore,
@@ -26,7 +27,10 @@ import {
   PropertyValues,
 } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import { WorkspaceSelectionStateWithChangeId } from "../../types/types";
+import {
+  EnumValue,
+  WorkspaceSelectionStateWithChangeId,
+} from "../../types/types";
 import {
   AssetPath,
   GraphDescriptor,
@@ -41,8 +45,12 @@ import {
 import { classMap } from "lit/directives/class-map.js";
 import { until } from "lit/directives/until.js";
 import { isConfigurableBehavior, isLLMContentBehavior } from "../../utils";
-import { map } from "lit/directives/map.js";
-import { FastAccessMenu, TextEditor } from "../elements";
+import {
+  FastAccessMenu,
+  ItemSelect,
+  LLMPartInput,
+  TextEditor,
+} from "../elements";
 import { createRef, ref, Ref } from "lit/directives/ref.js";
 import { isCtrlCommand } from "../../utils/is-ctrl-command";
 import { MAIN_BOARD_ID } from "../../constants/constants";
@@ -50,6 +58,8 @@ import { Project } from "../../state";
 import {
   FastAccessSelectEvent,
   NodePartialUpdateEvent,
+  ToastEvent,
+  ToastType,
 } from "../../events/events";
 import {
   isControllerBehavior,
@@ -59,13 +69,8 @@ import {
 import * as StringsHelper from "../../strings/helper.js";
 import { FlowGenConstraint } from "../../flow-gen/flow-generator";
 import { ConnectorView } from "../../connectors/types";
+import { SignalWatcher } from "@lit-labs/signals";
 const Strings = StringsHelper.forSection("Editor");
-
-type EnumValue = {
-  title: string;
-  id: string;
-  icon?: string;
-};
 
 // A type that is like a port (and fits InspectablePort), but could also be
 // used to describe parameters for connectors.
@@ -82,7 +87,7 @@ const INVALID_ITEM = html`<div id="invalid-item">
 </div>`;
 
 @customElement("bb-entity-editor")
-export class EntityEditor extends LitElement {
+export class EntityEditor extends SignalWatcher(LitElement) {
   @property()
   accessor graph: InspectableGraph | null = null;
 
@@ -152,7 +157,6 @@ export class EntityEditor extends LitElement {
         padding: var(--bb-grid-size) var(--bb-grid-size);
         border: 1px solid transparent;
         border-radius: var(--bb-grid-size);
-        field-sizing: content;
         max-width: 100%;
         min-width: 20%;
 
@@ -313,6 +317,7 @@ export class EntityEditor extends LitElement {
 
     .asset {
       & h1 {
+        --outer-border: var(--bb-inputs-100);
         background: var(--bb-inputs-50);
 
         &::before {
@@ -335,6 +340,33 @@ export class EntityEditor extends LitElement {
         align-items: center;
         font: 400 var(--bb-label-medium) / var(--bb-label-line-height-medium)
           var(--bb-font-family);
+
+        &.object:has(details) {
+          padding-right: 0;
+        }
+
+        &:has(bb-text-editor) {
+          min-height: var(--bb-grid-size-5);
+          height: auto;
+          align-items: flex-start;
+          flex-direction: column;
+
+          &:not(.stretch) details {
+            bb-text-editor {
+              padding-top: var(--bb-grid-size-2);
+              padding-bottom: var(--bb-grid-size-2);
+              height: calc(200px - var(--bb-grid-size) * 2);
+              --text-editor-padding-top: 0;
+              --text-editor-padding-bottom: 0;
+              --text-editor-padding-left: 0;
+            }
+          }
+
+          &:not(:last-of-type) {
+            border-bottom: 1px solid var(--bb-neutral-300);
+            padding-bottom: var(--bb-grid-size-3);
+          }
+        }
 
         &.stretch:has(+ :not(.stretch)) {
           margin-bottom: var(--bb-grid-size-3);
@@ -404,6 +436,11 @@ export class EntityEditor extends LitElement {
           & input {
             display: none;
           }
+        }
+
+        details {
+          display: flex;
+          flex-direction: column;
         }
 
         label {
@@ -553,18 +590,24 @@ export class EntityEditor extends LitElement {
           padding: 0 var(--bb-grid-size-2);
         }
 
+        .item-select-container {
+          flex: 1 1 auto;
+          overflow: hidden;
+          margin-right: var(--bb-grid-size-2);
+        }
+
         #controls-container {
           display: flex;
           align-items: center;
           justify-content: flex-end;
-          flex: 1 0 auto;
+          flex: 0 0 auto;
 
           & #controls {
             display: flex;
             align-items: center;
 
             height: var(--bb-grid-size-7);
-            background: var(--bb-neutral-200);
+            background: var(--bb-neutral-100);
             border-radius: var(--bb-grid-size-16);
             padding: 0 var(--bb-grid-size-2);
 
@@ -578,7 +621,7 @@ export class EntityEditor extends LitElement {
               height: 20px;
               margin: 0 var(--bb-grid-size);
               border: none;
-              background: var(--bb-neutral-200)
+              background: var(--bb-neutral-100)
                 var(--bb-icon-home-repair-service) center center / 20px 20px
                 no-repeat;
               transition: background-color 0.2s cubic-bezier(0, 0, 0.3, 1);
@@ -591,7 +634,7 @@ export class EntityEditor extends LitElement {
 
                 &:hover,
                 &:focus {
-                  background-color: var(--bb-neutral-300);
+                  background-color: var(--bb-neutral-200);
                 }
               }
             }
@@ -613,6 +656,14 @@ export class EntityEditor extends LitElement {
         margin: var(--bb-grid-size-3) var(--bb-grid-size-6);
         --output-lite-border-color: transparent;
         --output-border-radius: var(--bb-grid-size);
+      }
+
+      & bb-llm-part-input {
+        &.fill {
+          width: 100%;
+          height: 100%;
+          overflow: auto;
+        }
       }
     }
 
@@ -664,11 +715,15 @@ export class EntityEditor extends LitElement {
 
   #reactiveChange(port: PortLike) {
     const reactive = port.schema.behavior?.includes("reactive");
-    if (!reactive) return () => {};
+    if (!reactive)
+      return () => {
+        this.#edited = true;
+      };
 
     return (evt: Event) => {
       const { target } = evt;
-      if (target instanceof HTMLSelectElement) {
+      if (target instanceof HTMLSelectElement || target instanceof ItemSelect) {
+        this.#edited = true;
         const { value } = target;
         this.values = {
           ...this.values,
@@ -709,7 +764,7 @@ export class EntityEditor extends LitElement {
     part.text = new Template(part.text).transform(callback);
   }
 
-  #submit() {
+  async #submit(currentValues: InputValues | undefined) {
     if (!this.#formRef.value) {
       return;
     }
@@ -719,21 +774,65 @@ export class EntityEditor extends LitElement {
     const graphId = data.get("graph-id") as string | null;
     const nodeId = data.get("node-id") as string | null;
     if (nodeId !== null && graphId !== null) {
-      this.#emitUpdatedNodeConfiguration(form, graphId, nodeId);
+      await this.#emitUpdatedNodeConfiguration(
+        currentValues,
+        form,
+        graphId,
+        nodeId
+      );
+      return;
     }
     const assetPath = data.get("asset-path") as string | null;
     if (assetPath !== null) {
-      const ports = this.#connectorPorts.get(assetPath) || [];
-      const { values } = this.#takePortValues(form, ports);
-      console.log("VALUES", values);
-      this.projectState?.organizer.commitConnectorInstanceEdits(
-        assetPath,
-        values as Record<string, JsonSerializable>
-      );
+      // When "asset-path" is submitted, we know that this is a an asset.
+
+      // 1) Get the right asset
+      const asset = this.projectState?.graphAssets.get(assetPath);
+      if (!asset) {
+        console.warn(`Unable to commit edits to asset "${assetPath}`);
+        return;
+      }
+
+      // 2) get title
+      const title = form.querySelector<HTMLInputElement>("#node-title")?.value;
+      if (!title) {
+        console.warn(
+          `Unable to find title for in step editor, likely a form integrity problem`
+        );
+        return;
+      }
+
+      // 3) update connector configuration
+      const connector = asset.connector;
+      if (connector) {
+        const ports = this.#connectorPorts.get(assetPath) || [];
+        const { values } = this.#takePortValues(form, ports);
+        const commiting = await connector.commitEdits(
+          title,
+          values as Record<string, JsonSerializable>
+        );
+        if (!ok(commiting)) {
+          this.dispatchEvent(new ToastEvent(commiting.$error, ToastType.ERROR));
+        }
+      } else {
+        const dataPart =
+          form.querySelector<LLMPartInput>("#asset-value")?.dataPart;
+
+        let data: LLMContent[] | undefined = undefined;
+        if (dataPart) {
+          data = [{ role: "user", parts: [dataPart] }];
+        }
+
+        const updating = await asset.update(title, data);
+        if (!ok(updating)) {
+          this.dispatchEvent(new ToastEvent(updating.$error, ToastType.ERROR));
+        }
+      }
     }
   }
 
-  #emitUpdatedNodeConfiguration(
+  async #emitUpdatedNodeConfiguration(
+    currentValues: InputValues | undefined,
     form: HTMLFormElement,
     graphId: GraphIdentifier,
     nodeId: NodeIdentifier
@@ -762,16 +861,21 @@ export class EntityEditor extends LitElement {
       metadata.title = title.value;
     }
 
-    const ports = node.currentPorts().inputs.ports.filter((port) => {
-      if (port.star || port.name === "") return false;
-      if (!isConfigurableBehavior(port.schema)) return false;
-      return true;
-    });
+    // Because the rest of the function is async and the values of the form
+    // element may change as the selection changes, let's copy the form values,
+    // so that we have a stable set of values to work with.
+    const formValues = this.#copyFormValues(form);
 
-    const { values, ins } = this.#takePortValues(form, ports);
+    const ports = (await node.ports(currentValues)).inputs.ports.filter(
+      (port) => {
+        if (port.star || port.name === "") return false;
+        if (!isConfigurableBehavior(port.schema)) return false;
+        return true;
+      }
+    );
+
+    const { values, ins } = this.#takePortValues(formValues, ports);
     const configuration = { ...node.configuration(), ...values };
-
-    this.values = configuration;
 
     this.dispatchEvent(
       new NodePartialUpdateEvent(
@@ -785,8 +889,21 @@ export class EntityEditor extends LitElement {
     );
   }
 
+  #copyFormValues(form: HTMLFormElement): InputValues {
+    const result: InputValues = {};
+    for (const input of form.querySelectorAll<HTMLInputElement>("[name]")) {
+      const name = input.getAttribute("name");
+      if (!name) {
+        continue;
+      }
+      const value = input.type === "checkbox" ? input.checked : input.value;
+      result[name] = value;
+    }
+    return result;
+  }
+
   #takePortValues(
-    form: HTMLFormElement,
+    formValues: InputValues,
     ports: PortLike[]
   ): { values: Record<string, NodeValue>; ins: TemplatePart[] } {
     const values: Record<string, NodeValue> = {};
@@ -802,33 +919,31 @@ export class EntityEditor extends LitElement {
     };
 
     for (const port of ports) {
-      const portEl = form.querySelector<HTMLInputElement>(
-        `[name="${port.name}"]`
-      );
+      const formValue = formValues[port.name];
       switch (port.schema.type) {
         case "array":
         case "object": {
           if (isLLMContentBehavior(port.schema)) {
-            const value = { text: portEl?.value ?? "" };
+            const value = { text: (formValue as string) ?? "" };
             this.#updateComponentParamsInText(value, transform);
             values[port.name] = { role: "user", parts: [value] };
           } else if (isLLMContentArrayBehavior(port.schema)) {
-            const value = { text: portEl?.value ?? "" };
+            const value = { text: (formValue as string) ?? "" };
             this.#updateComponentParamsInText(value, transform);
             values[port.name] = [{ role: "user", parts: [value] }];
           } else {
-            values[port.name] = portEl?.value;
+            values[port.name] = formValue;
           }
           break;
         }
 
         case "boolean": {
-          values[port.name] = portEl?.checked ?? false;
+          values[port.name] = formValue ?? false;
           break;
         }
 
         case "string": {
-          values[port.name] = portEl?.value ?? undefined;
+          values[port.name] = formValue ?? undefined;
           break;
         }
       }
@@ -884,19 +999,31 @@ export class EntityEditor extends LitElement {
         .sort((a, b) => {
           if (isControllerBehavior(a.schema)) return -1;
           if (isControllerBehavior(b.schema)) return 1;
-          if (isLLMContentBehavior(a.schema)) return -1;
-          if (isLLMContentBehavior(b.schema)) return 1;
+          if (shouldBeAtTop(a.schema)) return -1;
+          if (shouldBeAtTop(b.schema)) return 1;
 
-          return a.title.localeCompare(b.title);
+          return a.name.localeCompare(b.name);
+
+          function shouldBeAtTop(schema: Schema) {
+            return (
+              isLLMContentBehavior(schema) &&
+              !schema.behavior?.includes("hint-advanced")
+            );
+          }
         });
 
       return html`<div class=${classMap(classes)}>
         <h1 id="title">
-          <input id="node-title" name="node-title" .value=${node.title()} />
+          <input
+            autocomplete="off"
+            id="node-title"
+            name="node-title"
+            .value=${node.title()}
+          />
         </h1>
         <div id="type"></div>
         <div id="content">
-          ${this.#renderPorts(graphId, nodeId, inputPorts)}
+          ${this.#renderPorts(graphId, nodeId, inputPorts, node.title())}
         </div>
         <input type="hidden" name="graph-id" .value=${graphId} />
         <input type="hidden" name="node-id" .value=${nodeId} />
@@ -909,12 +1036,10 @@ export class EntityEditor extends LitElement {
   #renderTextEditorPort(
     port: PortLike,
     value: LLMContent | undefined,
-    graphId: GraphIdentifier
+    graphId: GraphIdentifier,
+    fastAccess: boolean
   ) {
-    const portValue: LLMContent = value ?? {
-      role: "user",
-      parts: [{ text: "" }],
-    };
+    const portValue = getLLMContentPortValue(value, port.schema);
     const textPart = portValue.parts.find((part) => isTextCapabilityPart(part));
     if (!textPart) {
       return html`Invalid value`;
@@ -925,6 +1050,7 @@ export class EntityEditor extends LitElement {
       .value=${textPart.text}
       .projectState=${this.projectState}
       .subGraphId=${graphId !== MAIN_BOARD_ID ? graphId : null}
+      .supportsFastAccess=${fastAccess}
       id=${port.name}
       name=${port.name}
       @keydown=${(evt: KeyboardEvent) => {
@@ -932,7 +1058,7 @@ export class EntityEditor extends LitElement {
           return;
         }
 
-        this.#submit();
+        this.#submit(this.values);
       }}
     ></bb-text-editor>`;
   }
@@ -940,7 +1066,8 @@ export class EntityEditor extends LitElement {
   #renderPorts(
     graphId: GraphIdentifier,
     nodeId: NodeIdentifier,
-    inputPorts: PortLike[]
+    inputPorts: PortLike[],
+    title: string
   ) {
     const hasTextEditor =
       inputPorts.findIndex((port) => isLLMContentBehavior(port.schema)) !== -1;
@@ -951,17 +1078,38 @@ export class EntityEditor extends LitElement {
       switch (port.schema.type) {
         case "object": {
           if (isLLMContentBehavior(port.schema)) {
-            classes.stretch = true;
             classes.object = true;
+
+            // This check has an iffy quality to it, since it likely overly
+            // specific. It's necessary to render the system instruction port
+            // on text generator :)
+            // Ideally, we'll probably need to use `at-wireable` or something,
+            // and instead of negative check, use if (at-wireable) check.
+            const advanced = port.schema.behavior?.includes("hint-advanced");
             value = this.#renderTextEditorPort(
               port,
               isLLMContent(port.value) ? port.value : undefined,
-              graphId
+              graphId,
+              !advanced
             );
+            if (advanced) {
+              // This is also super iffy. Ideally, we have a whole "Advanced"
+              // configuration section, but for now, we just wrap the text
+              // editor.
+              value = html`<details>
+                <summary>${port.title}</summary>
+                ${value}
+              </details>`;
+            } else {
+              classes.stretch = true;
+            }
           } else {
             value = html`<bb-delegating-input
               id=${port.name}
               name=${port.name}
+              .metadata=${{
+                docName: title,
+              }}
               .schema=${port.schema}
               .value=${port.value}
               @input=${() => {
@@ -981,7 +1129,8 @@ export class EntityEditor extends LitElement {
               isLLMContentArray(port.value)
                 ? (port.value.at(-1) as LLMContent)
                 : undefined,
-              graphId
+              graphId,
+              true
             );
           }
           break;
@@ -1025,29 +1174,48 @@ export class EntityEditor extends LitElement {
 
             const classes: Record<string, boolean> = {};
             if (currentValue.icon) {
-              classes.icon = true;
-              classes[currentValue.icon] = true;
               classes.slim = isControllerBehavior(port.schema);
             }
 
             value = html`<label for=${port.name} class=${classMap(classes)}
                 >${!isControllerBehavior(port.schema) ? port.title : ""}</label
-              ><select
-                @change=${this.#reactiveChange(port)}
-                name=${port.name}
-                id=${port.name}
               >
-                ${map(port.schema.enum, (option) => {
-                  const { id, title } = enumValue(option);
-                  return html`<option
-                    value=${id}
-                    ?selected=${port.value === id ||
-                    (!port.value && id === port.schema.default)}
-                  >
-                    ${title}
-                  </option>`;
-                })}
-              </select>`;
+              <div class="item-select-container">
+                <bb-item-select
+                  @change=${this.#reactiveChange(port)}
+                  name=${port.name}
+                  id=${port.name}
+                  .alignment=${isControllerBehavior(port.schema)
+                    ? "bottom"
+                    : "top"}
+                  .values=${port.schema.enum.map((option) => {
+                    const v = enumValue(option);
+                    // TODO: Remap these to icons at the source level
+                    if (v.icon) {
+                      switch (v.icon) {
+                        case "generative":
+                          v.icon = "spark";
+                          break;
+                        case "generative-text":
+                          v.icon = "text_analysis";
+                          break;
+                        case "generative-image":
+                          v.icon = "photo_spark";
+                          break;
+                        case "generative-audio":
+                          v.icon = "audio_magic_eraser";
+                          break;
+                        case "generative-video":
+                          v.icon = "videocam_auto";
+                          break;
+                      }
+                    }
+
+                    return v;
+                  })}
+                  .value=${port.value}
+                ></bb-item-select>
+              </div>`;
             break;
           }
 
@@ -1169,36 +1337,67 @@ export class EntityEditor extends LitElement {
 
     let value;
     if (asset.type === "connector") {
-      value = this.projectState?.organizer
-        .getConnectorView(assetPath)
-        .then((view) => {
-          if (!ok(view)) return nothing;
-          const ports = portsFromView(view);
-          this.#connectorPorts.set(assetPath, ports);
-
-          return this.#renderPorts("", "", ports);
-        });
-      // return html`${until(
-      //   value,
-      //   html`<div id="generic-status">Loading...</div>`
-      // )}`;
+      const view =
+        this.projectState?.graphAssets.get(assetPath)?.connector?.view;
+      if (!view || !ok(view)) return nothing;
+      const ports = portsFromView(view);
+      this.#connectorPorts.set(assetPath, ports);
+      value = this.#renderPorts("", "", ports, asset.title);
     } else {
       const graphUrl = new URL(this.graph.raw().url ?? window.location.href);
+      const itemData = asset?.data.at(-1) ?? null;
+      const dataPart = itemData?.parts[0] ?? null;
+      const isDrawable = isStoredData(dataPart) && asset.subType === "drawable";
+      const skipOutput = isTextCapabilityPart(dataPart) || isDrawable;
 
-      value = html`<bb-llm-output
-        .value=${asset?.data.at(-1) ?? null}
-        .clamped=${false}
-        .lite=${true}
-        .showModeToggle=${false}
-        .showEntrySelector=${false}
-        .showExportControls=${false}
+      const partEditor = html`<bb-llm-part-input
+        class=${classMap({ fill: skipOutput })}
+        id="asset-value"
+        @submit=${(evt: SubmitEvent) => {
+          evt.preventDefault();
+          evt.stopImmediatePropagation();
+
+          this.#submit(this.values);
+        }}
         .graphUrl=${graphUrl}
-      ></bb-llm-output>`;
+        .subType=${asset.subType}
+        .projectState=${this.projectState}
+        .dataPart=${dataPart}
+      ></bb-llm-part-input>`;
+
+      let input: HTMLTemplateResult | symbol = nothing;
+      if (skipOutput) {
+        input = html`<div class="stretch object">${partEditor}</div>`;
+      } else {
+        input = partEditor;
+      }
+
+      let output: HTMLTemplateResult | symbol = nothing;
+      if (!skipOutput) {
+        output = html` <bb-llm-output
+          .value=${itemData}
+          .clamped=${false}
+          .lite=${true}
+          .showModeToggle=${false}
+          .showEntrySelector=${false}
+          .showExportControls=${false}
+          .graphUrl=${graphUrl}
+        ></bb-llm-output>`;
+      }
+
+      value = [input, output];
     }
 
     return html`<div class=${classMap({ asset: true })}>
-      <h1 id="title"><span>${asset.title}</span></h1>
-      <div id="content">${until(value)}</div>
+      <h1 id="title">
+        <input
+          autocomplete="off"
+          id="node-title"
+          name="node-title"
+          .value=${asset.title}
+        />
+      </h1>
+      <div id="content">${value}</div>
       <input type="hidden" name="asset-path" .value=${assetPath} />
     </div>`;
   }
@@ -1244,7 +1443,9 @@ export class EntityEditor extends LitElement {
       if (this.#edited) {
         // Autosave.
         this.#edited = false;
-        this.#submit();
+        // Because this function is async, let's pass it the current values,
+        // so that when they are set to undefined later, we still have them.
+        this.#submit(this.values);
       }
 
       // Reset the node value so that we don't receive incorrect port data.
@@ -1335,6 +1536,10 @@ function enumValue(value: SchemaEnumValue): EnumValue {
     enumVal.icon = value.icon;
   }
 
+  if (value.description) {
+    enumVal.description = value.description;
+  }
+
   return enumVal;
 }
 
@@ -1348,4 +1553,26 @@ function portsFromView(view: ConnectorView): PortLike[] {
       value: (values as Record<string, NodeValue>)[name],
     } satisfies PortLike;
   });
+}
+
+function getLLMContentPortValue(
+  value: LLMContent | undefined,
+  schema: Schema
+): LLMContent {
+  if (!value) {
+    const defaultValue = schema.default;
+    if (defaultValue) {
+      try {
+        return JSON.parse(defaultValue);
+      } catch (e) {
+        // eat the error, just fall through
+      }
+    }
+  } else {
+    return value;
+  }
+  return {
+    role: "user",
+    parts: [{ text: "" }],
+  };
 }

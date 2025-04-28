@@ -14,6 +14,10 @@ import {
   KitNodeChosenEvent,
   ShowAssetOrganizerEvent,
   ShowTooltipEvent,
+  ToastEvent,
+  ToastType,
+  ZoomInEvent,
+  ZoomOutEvent,
   ZoomToFitEvent,
 } from "../../events/events.js";
 import { GraphIdentifier, NodeIdentifier } from "@breadboard-ai/types";
@@ -29,9 +33,14 @@ import {
 import { map } from "lit/directives/map.js";
 import { classMap } from "lit/directives/class-map.js";
 import { DATA_TYPE } from "./constants.js";
-import { NodeAddEvent } from "./events/events.js";
+import { CreateNewAssetsEvent, NodeAddEvent } from "./events/events.js";
 import { isA2 } from "@breadboard-ai/a2";
 import { until } from "lit/directives/until.js";
+import { GoogleDriveFileId, ItemSelect } from "../elements.js";
+import { NewAsset } from "../../types/types.js";
+import { createRef, ref, Ref } from "lit/directives/ref.js";
+import { SIGN_IN_CONNECTION_ID } from "../../utils/signin-adapter.js";
+import { InputChangeEvent } from "../../plugins/input-plugin.js";
 
 const QUICK_ADD_ADJUSTMENT = -20;
 
@@ -125,6 +134,68 @@ export class EditorControls extends LitElement {
       }
     }
 
+    #graph-controls {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      right: var(--bb-grid-size-6);
+      bottom: var(--bb-grid-size-7);
+      background: var(--bb-neutral-0);
+      border-radius: var(--bb-grid-size-16);
+      padding: var(--bb-grid-size) var(--bb-grid-size);
+      box-shadow: var(--bb-elevation-16-light);
+
+      &::before {
+        content: "";
+        position: absolute;
+        width: calc(100% - 2px);
+        height: 1px;
+        left: 1px;
+        top: var(--bb-grid-size-12);
+        background: var(--bb-neutral-200);
+      }
+
+      & button {
+        font-size: 0;
+        background: var(--bb-neutral-0) var(--bb-icon-fit) center center / 20px
+          20px no-repeat;
+        width: var(--bb-grid-size-7);
+        height: var(--bb-grid-size-7);
+        padding: 0;
+        border: none;
+        transition: background-color 0.2s cubic-bezier(0, 0, 0.3, 1);
+        border-radius: var(--bb-grid-size);
+
+        &#zoom-to-fit {
+          height: var(--bb-grid-size-10);
+          background-image: var(--bb-icon-fit);
+          margin-bottom: var(--bb-grid-size);
+          border-radius: var(--bb-grid-size-12) var(--bb-grid-size-12)
+            var(--bb-grid-size) var(--bb-grid-size);
+        }
+
+        &#zoom-in {
+          background-image: var(--bb-icon-add);
+          margin-top: var(--bb-grid-size);
+        }
+
+        &#zoom-out {
+          background-image: var(--bb-icon-remove);
+          border-radius: var(--bb-grid-size) var(--bb-grid-size)
+            var(--bb-grid-size-12) var(--bb-grid-size-12);
+        }
+
+        &:not([disabled]) {
+          cursor: pointer;
+
+          &:hover,
+          &:focus {
+            background-color: var(--bb-neutral-50);
+          }
+        }
+      }
+    }
+
     #top-shelf {
       position: absolute;
       display: flex;
@@ -154,9 +225,34 @@ export class EditorControls extends LitElement {
 
         border-radius: var(--bb-grid-size-16);
         height: var(--bb-grid-size-10);
-        box-shadow: var(--bb-elevation-1);
+        box-shadow: var(--bb-elevation-16-heavy);
         background: var(--bb-neutral-0);
         padding: 0;
+
+        & bb-item-select {
+          position: relative;
+          margin: 0 2px;
+
+          --menu-width: 200px;
+          --selected-item-column-gap: var(--bb-grid-size);
+          --selected-item-height: var(--bb-grid-size-9);
+          --selected-item-hover-color: var(--bb-neutral-50);
+          --selected-item-border-radius: var(--bb-grid-size-2)
+            var(--bb-grid-size-16) var(--bb-grid-size-16) var(--bb-grid-size-2);
+          --selected-item-font: 400 var(--bb-label-large) /
+            var(--bb-label-line-height-large) var(--bb-font-family);
+          --selected-item-title-padding: 0 var(--bb-grid-size-2) 0 0;
+
+          &::before {
+            content: "";
+            height: calc(100% + 4px);
+            position: absolute;
+            top: -2px;
+            left: -3px;
+            translate: -0.5px 0;
+            border-left: 1px solid var(--bb-neutral-100);
+          }
+        }
 
         & button {
           margin-right: var(--bb-grid-size);
@@ -168,13 +264,6 @@ export class EditorControls extends LitElement {
               var(--bb-grid-size-2) var(--bb-grid-size-16);
             margin-left: 2px;
             padding-left: var(--bb-grid-size-4);
-          }
-
-          &:last-of-type {
-            border-radius: var(--bb-grid-size-2) var(--bb-grid-size-16)
-              var(--bb-grid-size-16) var(--bb-grid-size-2);
-            margin-right: 2px;
-            padding-right: var(--bb-grid-size-4);
           }
 
           &:hover,
@@ -245,31 +334,25 @@ export class EditorControls extends LitElement {
           padding: 0 var(--bb-grid-size-3) 0 var(--bb-grid-size-8);
           width: var(--bb-grid-size-10);
           height: var(--bb-grid-size-10);
-          box-shadow: var(--bb-elevation-1);
+          box-shadow: var(--bb-elevation-16-heavy);
           margin-left: var(--bb-grid-size-3);
-        }
-
-        &#zoom-to-fit {
-          font-size: 0;
-          border-radius: 50%;
-          margin-left: var(--bb-grid-size-3);
-          width: var(--bb-grid-size-10);
-          height: var(--bb-grid-size-10);
-          background: var(--bb-neutral-0) var(--bb-icon-fit) center center /
-            20px 20px no-repeat;
-          box-shadow: var(--bb-elevation-1);
         }
       }
     }
 
     #shelf {
       position: absolute;
-      bottom: 28px;
+      bottom: 0;
       display: flex;
       align-items: center;
       justify-content: center;
       width: 100%;
       box-sizing: border-box;
+    }
+
+    bb-flowgen-editor-input {
+      flex: 1;
+      margin: var(--bb-grid-size-7) var(--bb-grid-size-3);
     }
 
     #component-picker {
@@ -476,12 +559,37 @@ export class EditorControls extends LitElement {
         transform: none;
       }
     }
+
+    #add-drive-proxy {
+      display: block;
+      width: 0;
+      height: 0;
+      position: absolute;
+      pointer-events: none;
+      overflow: hidden;
+    }
   `;
+
+  #addDriveInputRef: Ref<GoogleDriveFileId> = createRef();
 
   hidePickers() {
     this.#componentLibraryConfiguration = null;
     this.showComponentLibrary = false;
     this.showComponentPicker = false;
+  }
+
+  #attemptGDrivePickerFlow() {
+    if (!this.#addDriveInputRef.value) {
+      return;
+    }
+
+    try {
+      this.#addDriveInputRef.value.triggerFlow();
+    } catch (err) {
+      this.dispatchEvent(
+        new ToastEvent("Unable to load Google Drive", ToastType.ERROR)
+      );
+    }
   }
 
   #createComponentList(graphStore: MutableGraphStore, typeTag: string) {
@@ -744,8 +852,8 @@ export class EditorControls extends LitElement {
       const output = this.#createComponentList(this.graphStore, "output");
 
       const items: HTMLTemplateResult[] = [
-        ...generate,
         ...input,
+        ...generate,
         ...output,
       ].map((item) => {
         const classes: Record<string, boolean> = {};
@@ -770,6 +878,221 @@ export class EditorControls extends LitElement {
           ${item.metadata.title ?? "Untitled"}
         </button>`;
       });
+
+      items.push(
+        html`<bb-item-select
+            .heading=${Strings.from("LABEL_ADD_ASSETS")}
+            @change=${(evt: Event) => {
+              const [select] = evt.composedPath();
+              if (!(select instanceof ItemSelect)) {
+                return;
+              }
+
+              switch (select.value) {
+                case "text": {
+                  this.dispatchEvent(
+                    new CreateNewAssetsEvent([
+                      {
+                        path: globalThis.crypto.randomUUID(),
+                        type: "content",
+                        name: "Text",
+                        data: {
+                          role: "user",
+                          parts: [{ text: "" }],
+                        },
+                      },
+                    ])
+                  );
+                  break;
+                }
+
+                case "drawing": {
+                  this.dispatchEvent(
+                    new CreateNewAssetsEvent([
+                      {
+                        path: globalThis.crypto.randomUUID(),
+                        type: "content",
+                        subType: "drawable",
+                        name: "Drawing",
+                        data: {
+                          role: "user",
+                          parts: [
+                            { inlineData: { mimeType: "image/png", data: "" } },
+                          ],
+                        },
+                      },
+                    ])
+                  );
+                  break;
+                }
+
+                case "upload": {
+                  const f = document.createElement("input");
+                  f.type = "file";
+                  f.multiple = true;
+                  f.addEventListener("change", () => {
+                    if (!f.files) {
+                      return;
+                    }
+
+                    Promise.all(
+                      [...f.files].map((file) => {
+                        return new Promise<{
+                          name: string;
+                          mimeType: string;
+                          data: string;
+                        }>((resolve, reject) => {
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            const preamble = `data:${file.type};base64,`;
+                            const data = (reader.result as string).substring(
+                              preamble.length
+                            );
+                            resolve({
+                              name: file.name,
+                              mimeType: file.type,
+                              data,
+                            });
+                          };
+                          reader.onerror = () => reject("File read error");
+                          reader.readAsDataURL(file);
+                        });
+                      })
+                    ).then((files) => {
+                      const assets: NewAsset[] = files.map((file) => {
+                        return {
+                          path: globalThis.crypto.randomUUID(),
+                          type: "file",
+                          name: file.name,
+                          data: {
+                            role: "user",
+                            parts: [
+                              {
+                                inlineData: {
+                                  mimeType: file.mimeType,
+                                  data: file.data,
+                                },
+                              },
+                            ],
+                          },
+                        };
+                      });
+
+                      this.dispatchEvent(new CreateNewAssetsEvent(assets));
+                    });
+                  });
+
+                  f.click();
+                  break;
+                }
+
+                case "youtube": {
+                  this.dispatchEvent(
+                    new CreateNewAssetsEvent([
+                      {
+                        path: globalThis.crypto.randomUUID(),
+                        name: "YouTube Video",
+                        type: "content",
+                        subType: "youtube",
+                        data: {
+                          role: "user",
+                          parts: [
+                            {
+                              fileData: { fileUri: "", mimeType: "video/mp4" },
+                            },
+                          ],
+                        },
+                      },
+                    ])
+                  );
+                  break;
+                }
+
+                case "gdrive": {
+                  this.#attemptGDrivePickerFlow();
+                  break;
+                }
+
+                default: {
+                  console.log("Init", select.value);
+                  break;
+                }
+              }
+            }}
+            .freezeValue=${0}
+            .transparent=${true}
+            .values=${[
+              {
+                id: "asset",
+                title: "Asset",
+                icon: "alternate_email",
+                hidden: true,
+              },
+              {
+                id: "text",
+                title: "Text",
+                icon: "edit_note",
+              },
+              {
+                id: "upload",
+                title: "Upload file",
+                icon: "upload",
+              },
+              {
+                id: "gdrive",
+                title: "Google Drive",
+                icon: "drive",
+              },
+              {
+                id: "youtube",
+                title: "YouTube",
+                icon: "video_youtube",
+              },
+              {
+                id: "drawing",
+                title: "Drawing",
+                icon: "draw",
+              },
+            ]}
+          ></bb-item-select>
+          <div>
+            <bb-google-drive-file-id
+              id="add-drive-proxy"
+              ${ref(this.#addDriveInputRef)}
+              .connectionName=${SIGN_IN_CONNECTION_ID}
+              .ownedByMeOnly=${true}
+              @bb-input-change=${(evt: InputChangeEvent) => {
+                const driveFile = evt.value as {
+                  preview: string;
+                  id: string;
+                  mimeType: string;
+                };
+
+                this.dispatchEvent(
+                  new CreateNewAssetsEvent([
+                    {
+                      path: globalThis.crypto.randomUUID(),
+                      name: driveFile.preview,
+                      type: "content",
+                      subType: "gdrive",
+                      data: {
+                        role: "user",
+                        parts: [
+                          {
+                            fileData: {
+                              fileUri: driveFile.id,
+                              mimeType: driveFile.mimeType,
+                            },
+                          },
+                        ],
+                      },
+                    },
+                  ])
+                );
+              }}
+            ></bb-google-drive-file-id>
+          </div> `
+      );
 
       return items;
     });
@@ -799,6 +1122,22 @@ export class EditorControls extends LitElement {
       >
         Assets
       </button>
+    </div>`;
+
+    const shelf = html`<div id="shelf">
+      <bb-flowgen-editor-input
+        .currentGraph=${this.graph.raw()}
+        @pointerdown=${(evt: PointerEvent) => {
+          // <bb-renderer> listens for pointerdown and retains focus so that
+          // after selection updates the user can do things like delete nodes
+          // with the keyboard. The corresponding effect makes it impossible to
+          // interact with this element so we catch the event here first.
+          evt.stopPropagation();
+        }}
+      ></bb-flowgen-editor-input>
+    </div>`;
+
+    const graphControls = html`<div id="graph-controls">
       <button
         id="zoom-to-fit"
         @pointerover=${(evt: PointerEvent) => {
@@ -824,19 +1163,58 @@ export class EditorControls extends LitElement {
       >
         Zoom to fit
       </button>
-    </div>`;
 
-    const shelf = html`<div id="shelf">
-      <bb-flowgen-editor-input
-        .currentGraph=${this.graph.raw()}
-        @pointerdown=${(event: PointerEvent) => {
-          // TODO(aomarks) <bb-renderer> listens for pointerdown and steals
-          // focus, making it impossible to interact with this element unless we
-          // mask the event. Probably this shelf shouldn't even be within the
-          // renderer?
-          event.stopPropagation();
+      <button
+        id="zoom-in"
+        @pointerover=${(evt: PointerEvent) => {
+          this.dispatchEvent(
+            new ShowTooltipEvent(
+              Strings.from("COMMAND_ZOOM_IN"),
+              evt.clientX,
+              evt.clientY
+            )
+          );
         }}
-      ></bb-flowgen-editor-input>
+        @pointerout=${() => {
+          this.dispatchEvent(new HideTooltipEvent());
+        }}
+        @click=${() => {
+          let animate = true;
+          if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+            animate = false;
+          }
+
+          this.dispatchEvent(new ZoomInEvent(animate));
+        }}
+      >
+        Zoom in
+      </button>
+
+      <button
+        id="zoom-out"
+        @pointerover=${(evt: PointerEvent) => {
+          this.dispatchEvent(
+            new ShowTooltipEvent(
+              Strings.from("COMMAND_ZOOM_OUT"),
+              evt.clientX,
+              evt.clientY
+            )
+          );
+        }}
+        @pointerout=${() => {
+          this.dispatchEvent(new HideTooltipEvent());
+        }}
+        @click=${() => {
+          let animate = true;
+          if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+            animate = false;
+          }
+
+          this.dispatchEvent(new ZoomOutEvent(animate));
+        }}
+      >
+        Zoom out
+      </button>
     </div>`;
 
     let componentPicker: HTMLTemplateResult | symbol = nothing;
@@ -906,6 +1284,13 @@ export class EditorControls extends LitElement {
       </div>`;
     }
 
-    return [topShelf, shelf, defaultAdd, componentLibrary, componentPicker];
+    return [
+      topShelf,
+      shelf,
+      graphControls,
+      defaultAdd,
+      componentLibrary,
+      componentPicker,
+    ];
   }
 }

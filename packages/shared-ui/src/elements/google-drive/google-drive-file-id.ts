@@ -9,7 +9,11 @@ import { customElement, property, state } from "lit/decorators.js";
 import { type InputEnterEvent } from "../../events/events.js";
 import { InputChangeEvent, InputPlugin } from "../../plugins/input-plugin.js";
 import "../connection/connection-input.js";
-import { loadDrivePicker } from "./google-apis.js";
+import {
+  loadDrivePicker,
+  loadDriveApi,
+  loadGapiClient,
+} from "./google-apis.js";
 
 type PickedValue = {
   // A special value recognized by the "GraphPortLabel": if present in an
@@ -19,6 +23,10 @@ type PickedValue = {
   mimeType: string;
   /** The connection name under which the file was requested */
   connectionName: string;
+};
+
+type PickerMetadata = {
+  docName?: string;
 };
 
 const MIME_TYPES = [
@@ -93,7 +101,7 @@ export class GoogleDriveFileId extends LitElement {
 
   @state()
   private accessor _authorization:
-    | { clientId: string; secret: string }
+    | { clientId: string; secret: string; expiresIn?: number }
     | undefined = undefined;
 
   @state()
@@ -102,11 +110,20 @@ export class GoogleDriveFileId extends LitElement {
   @state()
   accessor docName = "";
 
+  @state()
+  accessor inProgress = false;
+
   @property()
   accessor value: PickedValue | null = null;
 
   @property()
+  accessor metadata: PickerMetadata | null = null;
+
+  @property()
   accessor connectionName = "$sign-in";
+
+  @property()
+  accessor ownedByMeOnly = false;
 
   #picker?: google.picker.Picker;
 
@@ -137,9 +154,20 @@ export class GoogleDriveFileId extends LitElement {
     if (this._pickerLib === undefined) {
       return html`<p>Loading Google Drive Picker ...</p>`;
     }
+    if (this.inProgress) {
+      return html`<p>Working ...</p>`;
+    }
     return html`
       <button @click=${this.#onClickPickFiles}>Pick File</button>
-      <input type="text" disabled .value=${this.value?.preview || ""} />
+      ${this.value
+        ? html`<input
+            type="text"
+            disabled
+            .value=${this.value.preview || ""}
+          />`
+        : html`<button @click=${this.#onCreateNewDoc}>
+            Create New Document
+          </button>`}
     `;
   }
 
@@ -159,6 +187,41 @@ export class GoogleDriveFileId extends LitElement {
     }
   }
 
+  async #onCreateNewDoc() {
+    if (this._authorization === undefined) return;
+
+    const name = this.metadata?.docName ?? this.docName ?? "Untitled Document";
+    const mimeType = "application/vnd.google-apps.document";
+
+    try {
+      this.inProgress = true;
+
+      await loadGapiClient();
+      gapi.auth.setToken({
+        access_token: this._authorization.secret,
+        error: "",
+        expires_in: `${this._authorization.expiresIn ?? 3600}`,
+        state: "https://www.googleapis.com/auth/drive",
+      });
+      const api = await loadDriveApi();
+      const file = await api.files.create({
+        resource: { name, mimeType },
+        fields: "id",
+      });
+      const id = file.result.id!;
+      this.docName = name;
+      this.value = {
+        id,
+        preview: name,
+        mimeType,
+        connectionName: this.connectionName,
+      };
+      this.dispatchEvent(new InputChangeEvent(this.value));
+    } finally {
+      this.inProgress = false;
+    }
+  }
+
   #onClickPickFiles() {
     if (this._authorization === undefined || this._pickerLib === undefined) {
       return;
@@ -167,6 +230,9 @@ export class GoogleDriveFileId extends LitElement {
 
     const view = new this._pickerLib.DocsView(google.picker.ViewId.DOCS);
     view.setMimeTypes(MIME_TYPES);
+    if (this.ownedByMeOnly) {
+      view.setOwnedByMe(true);
+    }
     view.setMode(google.picker.DocsViewMode.LIST);
 
     // See https://developers.google.com/drive/picker/reference

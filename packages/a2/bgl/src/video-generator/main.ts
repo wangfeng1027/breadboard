@@ -11,14 +11,16 @@ import {
   err,
   ok,
   llm,
+  isStoredData,
   toTextConcat,
   joinContent,
   toLLMContent,
+  toInlineReference,
   toLLMContentInline,
   toLLMContentStored,
   toText,
   toInlineData,
-  extractInlineData,
+  extractMediaData,
   extractTextData,
   defaultLLMContent,
 } from "./a2/utils";
@@ -37,9 +39,6 @@ import {
 
 const ASPECT_RATIOS = ["9:16", "16:9"];
 const OUTPUT_NAME = "generated_video";
-const GCS_PROJECT = "appcatalyst-449123";
-const STORAGE_PREFIX = "https://storage.mtls.cloud.google.com";
-const STORE_IN_GCS = false;
 
 type VideoGeneratorInputs = {
   context: LLMContent[];
@@ -60,14 +59,6 @@ async function callVideoGen(
   disablePromptRewrite: boolean,
   aspectRatio: string
 ): Promise<LLMContent> {
-  let gcsOutputConfig;
-  if (STORE_IN_GCS) {
-    gcsOutputConfig = {
-      bucket_name: "appcatalyst-bucket-test",
-      folder_path: "generated_videos",
-      project_name: GCS_PROJECT,
-    };
-  }
   // TODO(askerryryan): Respect disablePromptRewrite;
   const executionInputs: ContentMap = {};
   const encodedPrompt = btoa(unescape(encodeURIComponent(prompt)));
@@ -90,8 +81,13 @@ async function callVideoGen(
   const inputParameters: string[] = ["text_instruction"];
   if (imageContent) {
     console.log("Image found, using i2v");
-    const imageChunk = toInlineData(imageContent);
-    if (!imageChunk) {
+    let imageChunk;
+    if (isStoredData(imageContent)) {
+      imageChunk = toInlineReference(imageContent);
+    } else {
+      imageChunk = toInlineData(imageContent);
+    }
+    if (!imageChunk || typeof imageChunk == "string") {
       return toLLMContent("Image content did not have expected format");
     }
     executionInputs["reference_image"] = {
@@ -115,7 +111,6 @@ async function callVideoGen(
       output: OUTPUT_NAME,
     },
     execution_inputs: executionInputs,
-    output_gcs_config: gcsOutputConfig,
   } satisfies ExecuteStepRequest;
   // TODO(askerryryan): Remove when stable.
   console.log("REQUEST:");
@@ -126,17 +121,22 @@ async function callVideoGen(
   if (!ok(response)) {
     return toLLMContent("Video generation failed: " + response.$error);
   }
+  if (!response.executionOutputs) {
+    return toLLMContent("Video generation failed to generate video");
+  }
 
   let returnVal;
   for (let value of Object.values(response.executionOutputs)) {
     const mimetype = value.chunks[0].mimetype;
     if (mimetype.startsWith("video")) {
-      returnVal = toLLMContentInline(mimetype, value.chunks[0].data);
-    } else if (mimetype == "text/gcs-path") {
-      const returnedHandle = atob(value.chunks[0].data);
-      console.log("Payload written to ", returnedHandle);
-      const gcsUrl = returnedHandle.replace(GCS_PROJECT, STORAGE_PREFIX);
-      returnVal = toLLMContentStored(mimetype, gcsUrl);
+      if (mimetype.endsWith("/storedData")) {
+        returnVal = toLLMContentStored(
+          mimetype.replace("/storedData", ""),
+          value.chunks[0].data
+        );
+      } else {
+        returnVal = toLLMContentInline(mimetype, value.chunks[0].data);
+      }
     }
   }
   if (!returnVal) {
@@ -158,7 +158,7 @@ async function invoke({
     instructionText = toText(instruction).trim();
   }
   if (!aspectRatio) {
-    aspectRatio = "9:16";
+    aspectRatio = "16:9";
   }
   // 2) Substitute variables and magic image reference.
   // Note: it is important that images are not subsituted in here as they will
@@ -182,11 +182,11 @@ async function invoke({
   const results = await new ListExpander(substituting, context).map(
     async (itemInstruction, itemContext) => {
       // 1) Extract any image and text data from context (with history).
-      let imageContext = extractInlineData(itemContext);
+      let imageContext = extractMediaData(itemContext);
       const textContext = extractTextData(itemContext);
 
       // 3) Extract image and text data from (non-history) references.
-      const refImages = extractInlineData([itemInstruction]);
+      const refImages = extractMediaData([itemInstruction]);
       const refText = extractTextData([itemInstruction]);
 
       // 4) Combine with whatever data was extracted from context.

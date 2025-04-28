@@ -34,6 +34,7 @@ import {
 } from "@google-labs/breadboard";
 import { MAIN_BOARD_ID } from "../../constants/constants";
 import {
+  CreateNewAssetsEvent,
   GraphEdgeAttachmentMoveEvent,
   NodeAddEvent,
   NodeConfigurationRequestEvent,
@@ -43,7 +44,7 @@ import {
   SelectionTranslateEvent,
 } from "./events/events";
 import {
-  DroppedAsset,
+  NewAsset,
   HighlightStateWithChangeId,
   TopGraphRunResult,
   WorkspaceSelectionStateWithChangeId,
@@ -65,6 +66,8 @@ import {
   MoveNodesEvent,
   EdgeAttachmentMoveEvent,
   DroppedAssetsEvent,
+  ZoomInEvent,
+  ZoomOutEvent,
 } from "../../events/events";
 import { styleMap } from "lit/directives/style-map.js";
 import { Entity } from "./entity";
@@ -76,6 +79,7 @@ import { createRef, ref, Ref } from "lit/directives/ref.js";
 import { DATA_TYPE, MOVE_GRAPH_ID } from "./constants";
 import { AssetMetadata } from "@breadboard-ai/types";
 import { isCtrlCommand } from "../../utils/is-ctrl-command";
+import { RendererState } from "../../state";
 
 @customElement("bb-renderer")
 export class Renderer extends LitElement {
@@ -96,6 +100,9 @@ export class Renderer extends LitElement {
 
   @property()
   accessor graphStore: MutableGraphStore | null = null;
+
+  @property()
+  accessor state: RendererState | null = null;
 
   @property()
   accessor graphStoreUpdateId = 0;
@@ -143,7 +150,7 @@ export class Renderer extends LitElement {
   accessor cullPadding = 0;
 
   @property()
-  accessor graphFitPadding = 64;
+  accessor graphFitPadding = 100;
 
   @property()
   accessor graphTopologyUpdateId = 0;
@@ -342,7 +349,52 @@ export class Renderer extends LitElement {
     this.interactionMode = "inert";
   }
 
-  async #createAssets(evt: DragEvent) {
+  #handleNewAssets(evt: CreateNewAssetsEvent) {
+    evt.stopImmediatePropagation();
+
+    // Augment the added assets with the x & y coordinates of the
+    // middle of the graph and dispatch the dropped assets event.
+
+    const targetGraph = this.#graphs.get(MAIN_BOARD_ID);
+    if (!targetGraph) {
+      console.warn("Unable to add to graph");
+      return;
+    }
+
+    const x =
+      this.#boundsForInteraction.width * 0.5 - this.#boundsForInteraction.left;
+    const y =
+      this.#boundsForInteraction.height * 0.5 - this.#boundsForInteraction.top;
+    let graphLocation = new DOMPoint(x, y).matrixTransform(
+      targetGraph.worldTransform.inverse()
+    );
+
+    graphLocation.x += targetGraph.transform.e;
+    graphLocation.y += targetGraph.transform.f;
+
+    if (Number.isNaN(graphLocation.x) || Number.isNaN(graphLocation.y)) {
+      // Set as 130, 20 so that it gets reset to 0, 0 below.
+      graphLocation = new DOMPoint(130, 20);
+    }
+
+    const visual = {
+      x: toGridSize(graphLocation.x - 130),
+      y: toGridSize(graphLocation.y - 20),
+    };
+
+    const assets = evt.assets;
+    for (let i = 0; i < assets.length; i++) {
+      const asset = assets[i];
+      asset.visual = { ...visual };
+
+      asset.visual.x += i * 10;
+      asset.visual.y += i * 10;
+    }
+
+    this.dispatchEvent(new DroppedAssetsEvent(assets));
+  }
+
+  async #handleDroppedAssets(evt: DragEvent) {
     if (
       !evt.dataTransfer ||
       !evt.dataTransfer.files ||
@@ -384,7 +436,7 @@ export class Renderer extends LitElement {
     };
 
     const assetLoad = [...filesDropped].map((file, idx) => {
-      return new Promise<DroppedAsset>((resolve, reject) => {
+      return new Promise<NewAsset>((resolve, reject) => {
         const reader = new FileReader();
         reader.addEventListener("loadend", () => {
           if (reader.result === null) {
@@ -397,8 +449,10 @@ export class Renderer extends LitElement {
 
           resolve({
             name: file.name,
+            path: file.name,
+            type: "file",
             visual: { x: visual.x + idx * 10, y: visual.y + idx * 10 },
-            content: {
+            data: {
               role: "user",
               parts: [
                 {
@@ -428,7 +482,7 @@ export class Renderer extends LitElement {
 
     const nodeType = evt.dataTransfer?.getData(DATA_TYPE);
     if (!nodeType) {
-      this.#createAssets(evt);
+      this.#handleDroppedAssets(evt);
       return;
     }
 
@@ -850,6 +904,7 @@ export class Renderer extends LitElement {
       mainGraph.boundsLabel = this.graph.raw().title ?? "Untitled";
       mainGraph.nodes = this.graph.nodes();
       mainGraph.edges = this.graph.edges();
+      mainGraph.rendererState = this.state;
       if (this.showAssetsInGraph) {
         mainGraph.assets = this.graph.assets();
         mainGraph.assetEdges = this.graph.assetEdges();
@@ -874,6 +929,7 @@ export class Renderer extends LitElement {
         subGraph.boundsLabel = graph.raw().title ?? "Custom Tool";
         subGraph.nodes = graph.nodes();
         subGraph.edges = graph.edges();
+        subGraph.rendererState = this.state;
         subGraph.allowEdgeAttachmentMove = this.allowEdgeAttachmentMove;
         subGraph.resetTransform();
       }
@@ -964,6 +1020,31 @@ export class Renderer extends LitElement {
     );
   }
 
+  zoom(animated = false, requestedDelta = 0) {
+    const currentScale = this.camera.transform.a;
+    const newScale = currentScale * (1 - requestedDelta);
+
+    let delta = currentScale / newScale;
+    if (
+      currentScale * delta < this.minScale ||
+      currentScale * delta > this.maxScale
+    ) {
+      delta = 1;
+    }
+
+    const targetMatrix = this.camera.transform.translate(0, 0); // Clone.
+    const offsetX =
+      this.#boundsForInteraction.width * 0.5 - this.#boundsForInteraction.x;
+    const offsetY =
+      this.#boundsForInteraction.height * 0.5 - this.#boundsForInteraction.y;
+
+    targetMatrix.translateSelf(offsetX, offsetY);
+    targetMatrix.scaleSelf(delta, delta);
+    targetMatrix.translateSelf(-offsetX, -offsetY);
+
+    this.#updateCamera(animated, targetMatrix);
+  }
+
   fitToView(animated = true, retryOnEmpty = false) {
     if (!this.#graphs || !this.#boundsForInteraction || !this.camera) {
       return;
@@ -980,6 +1061,10 @@ export class Renderer extends LitElement {
     }
 
     const targetMatrix = this.#calculateCameraMatrixFromBounds(allGraphBounds);
+    this.#updateCamera(animated, targetMatrix);
+  }
+
+  #updateCamera(animated = false, targetMatrix: DOMMatrix) {
     if (!animated) {
       this.camera.transform = targetMatrix;
     } else {
@@ -1253,6 +1338,7 @@ export class Renderer extends LitElement {
           title: graphAsset.title,
           type: graphAsset.type,
           description: graphAsset.description,
+          subType: graphAsset.subType,
           visual,
         };
 
@@ -1479,8 +1565,17 @@ export class Renderer extends LitElement {
             evt.subGraphId
           );
         }}
+        @bbzoomin=${(evt: ZoomInEvent) => {
+          this.zoom(evt.animate, -0.25);
+        }}
+        @bbzoomout=${(evt: ZoomOutEvent) => {
+          this.zoom(evt.animate, 0.25);
+        }}
         @bbzoomtofit=${(evt: ZoomToFitEvent) => {
           this.fitToView(evt.animate);
+        }}
+        @bbcreatenewasset=${(evt: CreateNewAssetsEvent) => {
+          this.#handleNewAssets(evt);
         }}
       ></bb-editor-controls>`,
       this.camera,

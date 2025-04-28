@@ -30,8 +30,11 @@ import { toGridSize } from "./utils/to-grid-size";
 import { DragConnectorReceiver } from "../../types/types";
 import { DragConnectorStartEvent } from "../../events/events";
 import { getGlobalColor } from "../../utils/color.js";
-import { AssetPath } from "@breadboard-ai/types";
-import { InspectableAsset } from "@google-labs/breadboard";
+import { AssetPath, LLMContent } from "@breadboard-ai/types";
+import { InspectableAsset, ok } from "@google-labs/breadboard";
+import { SignalWatcher } from "@lit-labs/signals";
+import { GraphAsset as GraphAssetState } from "../../state/types.js";
+import { icons } from "../../styles/icons.js";
 
 const EDGE_STANDARD = getGlobalColor("--bb-neutral-400");
 
@@ -61,7 +64,10 @@ const rightArrow = html`${svg`
   </svg>`}`;
 
 @customElement("bb-graph-asset")
-export class GraphAsset extends Box implements DragConnectorReceiver {
+export class GraphAsset
+  extends SignalWatcher(Box)
+  implements DragConnectorReceiver
+{
   @property()
   accessor assetTitle = "";
 
@@ -86,7 +92,11 @@ export class GraphAsset extends Box implements DragConnectorReceiver {
   @property()
   accessor graphUrl: URL | null = null;
 
+  @property()
+  accessor state: GraphAssetState | null = null;
+
   static styles = [
+    icons,
     Box.styles,
     css`
       * {
@@ -178,19 +188,16 @@ export class GraphAsset extends Box implements DragConnectorReceiver {
           position: relative;
           justify-content: center;
 
-          & span {
+          & span:not(.g-icon) {
             text-overflow: ellipsis;
             overflow: hidden;
             white-space: nowrap;
           }
 
-          &::before {
+          & span.g-icon {
             flex: 0 0 auto;
-            content: "";
             width: 20px;
             height: 20px;
-            background: var(--bb-icon-alternate-email) center center / 20px 20px
-              no-repeat;
             margin-right: var(--bb-grid-size-2);
           }
 
@@ -229,6 +236,8 @@ export class GraphAsset extends Box implements DragConnectorReceiver {
           line-height: var(--bb-grid-size-6);
           border-radius: 0 0 var(--bb-grid-size-3) var(--bb-grid-size-3);
           pointer-events: none;
+          max-height: 320px;
+          overflow: hidden;
 
           & .loading {
             margin: 0;
@@ -252,20 +261,9 @@ export class GraphAsset extends Box implements DragConnectorReceiver {
   #dragStart: DOMPoint | null = null;
   #containerRef: Ref<HTMLElement> = createRef();
   #lastBounds: DOMRect | null = null;
-
-  constructor(public readonly assetPath: AssetPath) {
-    super();
-
-    this.tabIndex = 0;
-  }
-
-  calculateLocalBounds(): DOMRect {
-    if (!this.#containerRef.value) {
-      return new DOMRect();
-    }
-
-    if (this.hidden && this.#lastBounds) {
-      return this.#lastBounds;
+  #resizeObserver = new ResizeObserver(() => {
+    if (!this.#containerRef.value || this.hidden) {
+      return;
     }
 
     this.#lastBounds = new DOMRect(
@@ -275,9 +273,24 @@ export class GraphAsset extends Box implements DragConnectorReceiver {
       this.#containerRef.value.offsetHeight
     );
 
+    this.dispatchEvent(new NodeBoundsUpdateRequestEvent());
+  });
+
+  constructor(public readonly assetPath: AssetPath) {
+    super();
+
+    this.tabIndex = 0;
+  }
+
+  calculateLocalBounds(): DOMRect {
+    if (!this.#containerRef.value || !this.#lastBounds) {
+      return new DOMRect();
+    }
+
     return this.#lastBounds;
   }
 
+  #watchingResize = false;
   protected updated(changedProperties: PropertyValues): void {
     if (
       changedProperties.has("assetTitle") ||
@@ -287,6 +300,18 @@ export class GraphAsset extends Box implements DragConnectorReceiver {
         this.cullable = true;
         this.dispatchEvent(new NodeBoundsUpdateRequestEvent());
       });
+    }
+
+    if (!this.#watchingResize && this.#containerRef.value) {
+      this.#watchingResize = true;
+      this.#lastBounds = new DOMRect(
+        0,
+        0,
+        this.#containerRef.value.offsetWidth,
+        this.#containerRef.value.offsetHeight
+      );
+
+      this.#resizeObserver.observe(this.#containerRef.value);
     }
   }
 
@@ -343,6 +368,21 @@ export class GraphAsset extends Box implements DragConnectorReceiver {
         </button>`;
     }
 
+    let icon = "alternate_email";
+    if (this.asset?.subType) {
+      switch (this.asset.subType) {
+        case "youtube":
+          icon = "video_youtube";
+          break;
+        case "drawable":
+          icon = "draw";
+          break;
+        case "gdrive":
+          icon = "drive";
+          break;
+      }
+    }
+
     return html`<section
         id="container"
         class=${classMap({ bounds: this.showBounds })}
@@ -352,14 +392,6 @@ export class GraphAsset extends Box implements DragConnectorReceiver {
         <header
           @click=${(evt: Event) => {
             evt.stopImmediatePropagation();
-          }}
-          @dblclick=${() => {
-            // this.dispatchEvent(
-            //   new NodeConfigurationRequestEvent(
-            //     this.assetPath,
-            //     this.worldBounds
-            //   )
-            // );
           }}
           @pointerdown=${(evt: PointerEvent) => {
             if (!(evt.target instanceof HTMLElement)) {
@@ -434,6 +466,7 @@ export class GraphAsset extends Box implements DragConnectorReceiver {
             );
           }}
         >
+          <span class="g-icon">${icon}</span>
           <span>${this.assetTitle}</span>
           ${defaultAdd}
           <button
@@ -467,22 +500,35 @@ export class GraphAsset extends Box implements DragConnectorReceiver {
           ${this.updating
             ? html`<p class="loading">Loading asset details...</p>`
             : nothing}
-          <bb-llm-output
+          ${html`<bb-llm-output
             @outputsloaded=${() => {
               this.updating = false;
             }}
-            .value=${this.asset?.data.at(-1) ?? null}
+            .value=${this.#getPreviewValue()}
             .clamped=${false}
             .lite=${true}
+            .showPDFControls=${false}
             .showModeToggle=${false}
             .showEntrySelector=${false}
             .showExportControls=${false}
             .graphUrl=${this.graphUrl}
-          ></bb-llm-output>
+          ></bb-llm-output>`}
         </div>
       </section>
 
       ${this.renderBounds()}`;
+  }
+
+  #getPreviewValue(): LLMContent | null {
+    let context: LLMContent[] | undefined;
+    if (this.asset?.type === "connector") {
+      const preview = this.state?.connector?.preview;
+      if (!preview || !ok(preview)) return null;
+      context = preview;
+    } else {
+      context = this.asset?.data;
+    }
+    return context?.at(-1) ?? null;
   }
 
   render() {

@@ -48,8 +48,10 @@ export { GoogleDriveFileViewer } from "./google-drive/google-drive-file-viewer.j
 export { GoogleDriveFileId } from "./google-drive/google-drive-file-id.js";
 export { GoogleDriveQuery } from "./google-drive/google-drive-query.js";
 export { GoogleDriveServerPicker } from "./google-drive/google-drive-server-picker.js";
+export { ItemSelect } from "./input/item-select/item-select.js";
 export { JSONTree } from "./json-tree/json-tree.js";
 export { LLMInput } from "./input/llm-input/llm-input.js";
+export { LLMPartInput } from "./input/llm-input/llm-part-input.js";
 export { LLMInputArray } from "./input/llm-input/llm-input-array.js";
 export { LLMInputChat } from "./input/llm-input/llm-input-chat.js";
 export { LLMInputChatDebug } from "./input/llm-input/llm-input-chat-debug.js";

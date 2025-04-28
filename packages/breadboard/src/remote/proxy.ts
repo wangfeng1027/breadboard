@@ -177,7 +177,6 @@ export class ProxyClient {
           inflateToFileData
         )) as InputValues)
       : inputs;
-
     writer.write(["proxy", { node, inputs }]);
     writer.close();
 
