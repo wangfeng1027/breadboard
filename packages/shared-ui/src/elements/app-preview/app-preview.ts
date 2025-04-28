@@ -411,6 +411,8 @@ export class AppPreview extends LitElement {
 
   render() {
     if (this.#appTemplate) {
+      const run = this.run ?? null;
+      const events = run?.events ?? [];
       this.#appTemplate.graph = this.graph;
       this.#appTemplate.run = this.run;
       this.#appTemplate.topGraphResult = this.topGraphResult;
@@ -419,6 +421,9 @@ export class AppPreview extends LitElement {
       this.#appTemplate.isInSelectionState = this.isInSelectionState;
       this.#appTemplate.showingOlderResult = this.showingOlderResult;
       this.#appTemplate.readOnly = false;
+      this.#appTemplate.events = events;
+      this.#appTemplate.status = this.status;
+
     }
 
     return html`

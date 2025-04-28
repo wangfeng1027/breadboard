@@ -21,6 +21,8 @@ import {
   NodeHandlerMetadata,
   InspectableRun,
   InspectableAssetEdgeDirection,
+  InspectableRunEvent,
+
 } from "@google-labs/breadboard";
 import {
   AssetPath,
@@ -574,6 +576,8 @@ export interface AppTemplate extends LitElement {
   showingOlderResult: boolean;
   appURL: string | null;
   readOnly: boolean;
+  events: InspectableRunEvent[] | null;
+  status: STATUS;
 }
 
 export interface Utterance {

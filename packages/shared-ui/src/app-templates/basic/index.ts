@@ -18,7 +18,10 @@ import {
   EdgeLogEntry,
   TopGraphRunResult,
   NodeLogEntry,
+  STATUS
 } from "../../types/types";
+import * as StringsHelper from "../../strings/helper.js";
+const Strings = StringsHelper.forSection("AppPreview");
 import Mode from "../shared/styles/icons.js";
 import Animations from "../shared/styles/animations.js";
 import AppTemplatesStyle from "./index-style.js";
@@ -32,6 +35,8 @@ import {
   InspectableRunSecretEvent,
   isLLMContent,
   isTextCapabilityPart,
+  InspectableRunEvent,
+  InspectableRunNodeEvent
 } from "@google-labs/breadboard";
 import '@material/web/button/filled-button.js';
 import '@material/web/icon/icon.js';
@@ -123,6 +128,12 @@ export class Template extends LitElement implements AppTemplate {
 
   @property()
   accessor readOnly = true;
+
+  @property()
+  accessor events: InspectableRunEvent[] | null = null;
+  
+  @property({ reflect: true })
+  accessor status = STATUS.RUNNING;
 
   @state()
   accessor showAddAssetModal = false;
@@ -230,6 +241,36 @@ export class Template extends LitElement implements AppTemplate {
     return html`<div id="activity" class="turn last">${outputContents}</div>`;
   }
 
+
+  #renderFullConversation() {
+      const run = this.run ?? null;
+      const events = run?.events ?? [];
+      const eventPosition = events.length - 1;
+  
+      const hideLast = this.status === STATUS.STOPPED;
+      const graphUrl = this.graph?.url ? new URL(this.graph.url) : null;
+      const nextNodeId = this.topGraphResult?.currentNode?.descriptor.id ?? null;
+  
+      return html`
+        <div id="board-activity-container">
+          <bb-board-conversation
+            .graphUrl=${graphUrl}
+            .run=${run}
+            .events=${events}
+            .eventPosition=${eventPosition}
+            .showExtendedInfo=${false}
+            .showLogTitle=${false}
+            .logTitle=${"Run"}
+            .hideLast=${hideLast}
+            .showDebugControls=${false}
+            .nextNodeId=${nextNodeId}
+            .waitingMessage=${""}
+            name=${Strings.from("LABEL_PROJECT")}
+          ></bb-board-conversation>
+        </div>
+      `;
+  }
+  
   #renderActivity(topGraphResult: TopGraphRunResult) {
     let activityContents:
       | HTMLTemplateResult
@@ -366,7 +407,7 @@ export class Template extends LitElement implements AppTemplate {
     <div class="conversations">
       <div class="conversations-content">
         ${this.#renderIntro()}
-        ${this.#renderTurns(topGraphResult)} 
+        ${this.#renderFullConversation()} 
         ${topGraphResult.status === 'running'
           ? html`
           <div class="turn last loader">
@@ -376,7 +417,6 @@ export class Template extends LitElement implements AppTemplate {
           </div>
               `
           : nothing}
-          ${this.#renderOutput(topGraphResult)}
       </div>
     </div>
     `

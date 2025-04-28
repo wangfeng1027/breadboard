@@ -170,10 +170,6 @@ export class LLMOutput extends LitElement {
       &:has(> .copy-image-to-clipboard),
       &:has(> video),
       &:has(> audio) {
-        justify-content: center;
-        align-items: center;
-        padding: var(--output-value-padding-y, 0)
-          var(--output-value-padding-x, 0);
       }
 
       &:has(> .html-view) {
