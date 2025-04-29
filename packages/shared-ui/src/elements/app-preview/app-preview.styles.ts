@@ -123,36 +123,6 @@ export const styles = css`
       }
     }
 
-    & #theme-edit {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: var(--bb-grid-size-3) 0 var(--bb-grid-size-4) 0;
-      width: 100%;
-
-      & #designer {
-        height: var(--bb-grid-size-8);
-        border-radius: var(--bb-grid-size-16);
-        background: var(--bb-icon-edit) var(--bb-neutral-100) 8px center / 20px
-          20px no-repeat;
-        color: var(--bb-neutral-800);
-        font: 400 var(--bb-body-small) / var(--bb-body-line-height-small)
-          var(--bb-font-family);
-        transition: background-color 0.2s cubic-bezier(0, 0, 0.3, 1);
-        border: none;
-        padding: 0 var(--bb-grid-size-3) 0 var(--bb-grid-size-8);
-
-        &:not([disabled]) {
-          cursor: pointer;
-
-          &:hover,
-          &:focus {
-            background-color: var(--bb-neutral-200);
-          }
-        }
-      }
-    }
-
     & #content {
       display: flex;
       flex-direction: column;

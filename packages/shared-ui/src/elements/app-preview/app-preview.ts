@@ -19,7 +19,6 @@ import {
 } from "@google-labs/breadboard";
 
 import { styles as appPreviewStyles } from "./app-preview.styles.js";
-import { ThemeEditRequestEvent } from "../../events/events.js";
 import {
   AppTemplate,
   AppTemplateOptions,
@@ -433,21 +432,6 @@ export class AppPreview extends LitElement {
           class=${classMap({ active: this.#appTemplate !== null })}
         >
           ${this.#template}
-        </div>
-        <div id="theme-edit">
-          <button
-            id="designer"
-            ?disabled=${this.#loadingTemplate}
-            @click=${() => {
-              this.dispatchEvent(
-                new ThemeEditRequestEvent(
-                  this.#appTemplate?.additionalOptions ?? null
-                )
-              );
-            }}
-          >
-            Edit Theme
-          </button>
         </div>
       </div>
     `;
