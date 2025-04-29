@@ -661,38 +661,6 @@ export class Template extends LitElement implements AppTemplate {
               : nothing}
             </div>
           </div>`;
-      if (this.run && this.run.events.at(-1)?.type === "secret") {
-        const secretEvent = this.run.events.at(-1) as InspectableRunSecretEvent;
-
-        active = true;
-        // TODO: figure out what we should do for these secrets and remove display:none.
-        inputContents = html`
-          <div class="user-input">
-            <p class="api-message">
-              When calling an API, the API provider's applicable privacy policy
-              and terms apply
-            </p>
-            ${map(secretEvent.keys, (key) => {
-              if (key.startsWith("connection:")) {
-                return html`<bb-connection-input
-                  id=${key}
-                  .connectionId=${key.replace(/^connection:/, "")}
-                ></bb-connection-input>`;
-              } else {
-                return html`<input
-                  name=${key}
-                  type="password"
-                  autocomplete="off"
-                  required
-                  .placeholder=${`Enter ${key}`}
-                />`;
-              }
-            })}
-          </div>
-          ${controls}
-        `;
-      // } else if (props.length > 0 && currentItem.descriptor?.type === "input") {
-      } else {
         active = true;
         const valueIsDefined = currentItem.value !== undefined;
         const valueHasKeys =
@@ -742,7 +710,6 @@ export class Template extends LitElement implements AppTemplate {
 
           ${controls}
         `;
-      } 
       // else {
       //   active = true;
       //   inputContents = placeholder;
@@ -776,6 +743,38 @@ export class Template extends LitElement implements AppTemplate {
       <div id="input-container" ${ref(this.#inputRef)}>${inputContents}</div>
       <div class="disclaimer">Generative AI may display inaccurate information, including about people, so double-check its responses.</div>
     </div>`;
+  }
+
+  #renderSecretInput() {
+    if (this.run && this.run.events.at(-1)?.type === "secret") { 
+    const secretEvent = this.run.events.at(-1) as InspectableRunSecretEvent;
+
+    let active = true;
+    // TODO: figure out what we should do for these secrets and remove display:none.
+    let inputContents = html`
+      <div class="user-input">
+        <p class="api-message">
+          When calling an API, the API provider's applicable privacy policy
+          and terms apply
+        </p>
+        ${map(secretEvent.keys, (key) => {
+          if (key.startsWith("connection:")) {
+            return html`<bb-connection-input
+              id=${key}
+              .connectionId=${key.replace(/^connection:/, "")}
+            ></bb-connection-input>`;
+           } else {
+            return html`<input
+              name=${key}
+              type="password"
+              autocomplete="off"
+              required
+              .placeholder=${`Enter ${key}`}
+            />`;
+          }
+        })}
+      </div>`;
+    }
   }
 
   #renderConversations() {
