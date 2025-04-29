@@ -12,7 +12,7 @@ import { createRef, ref } from "lit/directives/ref.js";
 import type { GraphDescriptor } from "@breadboard-ai/types";
 import { consume } from "@lit/context";
 import { sideBoardRuntime } from "../contexts/side-board-runtime.js";
-import { GraphBoardServerGeneratedBoardEvent } from "../events/events.js";
+import { GraphBoardServerBlankBoardEventForAgentspace, GraphBoardServerGeneratedBoardEvent } from "../events/events.js";
 import { SideBoardRuntime } from "../sideboards/types.js";
 import type { ExpandingTextarea } from "../elements/input/expanding-textarea.js";
 import { icons } from "../styles/icons.js";
@@ -20,6 +20,7 @@ import "../elements/input/expanding-textarea.js";
 import { FlowGenerator } from "./flow-generator.js";
 import { AppCatalystApiClient } from "./app-catalyst.js";
 import { classMap } from "lit/directives/class-map.js";
+import {updateFlowBasedOnContext} from './agentspace-flow-generation-util.js';
 import {
   agentspaceUrlContext,
   type AgentspaceFlowContent,
@@ -303,8 +304,8 @@ export class FlowgenHomepagePanel extends LitElement {
         <span class=${classMap({ "g-icon": true, spin: true, "large-icon": true })}>progress_activity</span>
       </div>
       <div class="loading-text ">
-        <p class="first-line">Generating your flow</p>
-        <p class="second-line">Your flow will open automatically when ready<p>
+        <p class="first-line">Generating your agent</p>
+        <p class="second-line">Your agent will open automatically when ready<p>
       </div>
     </div>
     
@@ -312,17 +313,22 @@ export class FlowgenHomepagePanel extends LitElement {
   }
 
   firstUpdated() {
-    const prefilledValue = this.agentspaceFlowContent.agentInstructions;
-    if (!!prefilledValue) {
-      const input = this.#descriptionInput?.value;
-      if (input) {
-        input.value = prefilledValue;
-        input.focus();
-        this.#onInputChange();
+    const isIframe = this.agentspaceFlowContent.isIframe;
+    if (isIframe)
+    {
+      const prefilledValue = this.agentspaceFlowContent.agentInstructions;
+      if (!!prefilledValue) {
+        const input = this.#descriptionInput?.value;
+        if (input) {
+          input.value = prefilledValue;
+          input.focus();
+          this.#onInputChange();
+        }
+        this.style.setProperty('--display-border-container', 'none');
+        this.style.setProperty('--display-chips', 'none');
+      } else {
+        this.dispatchEvent(new GraphBoardServerBlankBoardEventForAgentspace());
       }
-      this.style.setProperty('--display-border-container', 'none');
-      this.style.setProperty('--display-chips', 'none');
-
     }
   }
 
@@ -361,23 +367,7 @@ export class FlowgenHomepagePanel extends LitElement {
   }
 
   #updateFlowBasedOnContext(flow: GraphDescriptor) {
-    const flowName = this.agentspaceFlowContent.agentName;
-    const flowDescription = this.agentspaceFlowContent.agentGoal;
-    const noCodeAgentId = this.agentspaceFlowContent.noCodeAgentId;
-    if (!!flowName && flow ) {
-      flow.title = flowName;
-    }
-    if (!!flowDescription && flow) {
-      flow.description = flowDescription;
-    }
-    if (!!noCodeAgentId && flow) {
-      const metadata = flow.metadata;
-      if (metadata) {
-        metadata.noCodeAgentId = noCodeAgentId;
-      } else {
-        flow.metadata = {noCodeAgentId};
-      }
-    }
+    updateFlowBasedOnContext(flow, this.agentspaceFlowContent);
   }
 
   #onGenerateComplete(graph: GraphDescriptor) {
@@ -406,6 +396,7 @@ export class FlowgenHomepagePanel extends LitElement {
     }
     console.error("Error generating board", error);
     this.#state = { status: "error", error };
+    this.dispatchEvent(new GraphBoardServerBlankBoardEventForAgentspace({error}));
   }
 }
 

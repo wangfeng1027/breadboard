@@ -694,6 +694,15 @@ export class GraphBoardServerBlankBoardEvent extends Event {
   }
 }
 
+export class GraphBoardServerBlankBoardEventForAgentspace extends Event {
+  static eventName = "bbgraphboardserverblandboadForAgentspace";
+  constructor(
+    public readonly error?: unknown,
+  ) {
+    super(GraphBoardServerBlankBoardEventForAgentspace.eventName, { ...eventInit });
+  }
+}
+
 export class GraphBoardServerGeneratedBoardEvent extends Event {
   static eventName = "bbgraphboardservergeneratedboard";
 

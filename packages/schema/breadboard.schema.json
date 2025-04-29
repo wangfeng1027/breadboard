@@ -402,7 +402,7 @@
 				},
 				"noCodeAgentParent": {
 					"type": "string",
-					"description": "This is only for agentspace usage. The linked no code agent parent with format:"
+					"description": "This is only for agentspace usage. The linked no code agent parent with format: projects/{project}/locations/{location}/collections/{collection}/engines/{engine}"
 				}
 			},
 			"additionalProperties": {

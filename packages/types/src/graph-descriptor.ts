@@ -452,7 +452,7 @@ export type GraphMetadata = {
 
   /**
    * This is only for agentspace usage.
-   * The linked no code agent parent with format: 
+   * The linked no code agent parent with format: projects/{project}/locations/{location}/collections/{collection}/engines/{engine}
    */
   noCodeAgentParent?: string;
 };

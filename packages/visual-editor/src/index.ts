@@ -60,6 +60,7 @@ import { SecretsHelper } from "./utils/secrets-helper";
 import { SettingsHelperImpl } from "./utils/settings-helper";
 import { styles as mainStyles } from "./index.styles.js";
 import * as Runtime from "./runtime/runtime.js";
+import {updateFlowBasedOnContext} from "@breadboard-ai/shared-ui/flow-gen/agentspace-flow-generation-util.js";
 import {
   TabId,
   WorkspaceSelectionStateWithChangeId,
@@ -2278,7 +2279,7 @@ export class Main extends LitElement {
 
   #sendMessageToParentPage(url: string | undefined) {
     const messageToSend = {type:"FLOW_GENERATED", id: url};
-    window.parent.postMessage(JSON.stringify(messageToSend), 'https://b2607f8b048001000003684baac1c2bf615380000000f60fffe8700.proxy.googlers.com/');
+    window.parent.postMessage(JSON.stringify(messageToSend), this.agentspaceUrl.parentOrigin ?? 'https://b2607f8b048001000003684baac1c2bf615380000000f60fffe8700.proxy.googlers.com/');
   }
 
   #prepareAgentsapceAdjustion() {
@@ -2695,6 +2696,8 @@ export class Main extends LitElement {
               this.#maybeShowWelcomePanel();
             }}
             @bbgraphboardserverblankboard=${() => {
+              console.log('here');
+
               this.showOpenBoardOverlay = false;
               this.#attemptBoardCreate(blank(), { role: "user" });
             }}
@@ -3718,6 +3721,8 @@ export class Main extends LitElement {
                 this.requestUpdate();
               }}
               @bbgraphboardserverblankboard=${() => {
+                console.log('here');
+
                 this.#attemptBoardCreate(blank(), { role: "user" });
               }}
               @bbsubgraphcreate=${async (
@@ -4165,6 +4170,14 @@ export class Main extends LitElement {
                 .boardServers=${this.#boardServers}
                 .boardServerNavState=${this.boardServerNavState}
                 .showAdditionalSources=${showAdditionalSources}
+                @bbgraphboardserverblandboadForAgentspace=${(evt: BreadboardUI.Events.GraphBoardServerBlankBoardEventForAgentspace) => {
+                  console.log(evt);
+                  const startGraph = blank();
+                  updateFlowBasedOnContext(startGraph, this.agentspaceUrl);
+                  console.log(startGraph);
+
+                  this.#attemptBoardCreate(startGraph, { role: "user"});
+                }}
                 @bbgraphboardserverblankboard=${() => {
                   this.#attemptBoardCreate(blank(), { role: "user" });
                 }}
