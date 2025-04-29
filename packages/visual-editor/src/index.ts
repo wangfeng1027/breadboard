@@ -2278,8 +2278,10 @@ export class Main extends LitElement {
   }
 
   #sendMessageToParentPage(url: string | undefined) {
-    const messageToSend = {type:"FLOW_GENERATED", id: url};
-    window.parent.postMessage(JSON.stringify(messageToSend), this.agentspaceUrl.parentOrigin ?? 'https://b2607f8b048001000003684baac1c2bf615380000000f60fffe8700.proxy.googlers.com/');
+    if (this.agentspaceUrl.parentOrigin) {
+      const messageToSend = {type:"FLOW_GENERATED", id: url};
+      window.parent.postMessage(JSON.stringify(messageToSend), this.agentspaceUrl.parentOrigin ?? 'https://b2607f8b048001000003684baac1c2bf615380000000f60fffe8700.proxy.googlers.com/');
+    }
   }
 
   #prepareAgentsapceAdjustion() {
@@ -4172,9 +4174,26 @@ export class Main extends LitElement {
                 .showAdditionalSources=${showAdditionalSources}
                 @bbgraphboardserverblandboadForAgentspace=${(evt: BreadboardUI.Events.GraphBoardServerBlankBoardEventForAgentspace) => {
                   console.log(evt);
+                  if (evt.error) {
+                  let error = evt.error as
+                    | string
+                    | { message?: string }
+                    | { error: { message?: string } | string };
+                   if (typeof error === "object" && error !== null && "error" in error) {
+                      // Errors from Breadboard are often wrapped in an {error: <Error>}
+                      // structure. Unwrap if needed.
+                      error = error.error;
+                    }
+                    let message;
+                    if (typeof error === "object" && error !== null && "message" in error) {
+                      message = error.message as string;
+                    } else {
+                      message = String(error);
+                    }
+                    this.toast(message,BreadboardUI.Events.ToastType.ERROR);
+                  }
                   const startGraph = blank();
                   updateFlowBasedOnContext(startGraph, this.agentspaceUrl);
-                  console.log(startGraph);
 
                   this.#attemptBoardCreate(startGraph, { role: "user"});
                 }}
