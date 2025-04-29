@@ -2283,7 +2283,8 @@ export class Main extends LitElement {
 
   #prepareAgentsapceAdjustion() {
     const queryString = window.location.search;
-    const urlParams = new URLSearchParams(queryString);
+    const decoded = decodeURIComponent(queryString);
+    const urlParams = new URLSearchParams(decoded);
     const instructions = urlParams.get('instructions') ?? '';
     const flowName = urlParams.get('name') ?? '';
     const iframe = urlParams.get('iframe');
@@ -2291,6 +2292,7 @@ export class Main extends LitElement {
     const parentOrigin = urlParams.get('parentOrigin') ?? '';
     const isInsideAgentspaceIframe = !!iframe || !!instructions || !!flowGoal || !!flowName;
     const noCodeAgentId = urlParams.get('noCodeAgentId') ?? '';
+    const engineName = urlParams.get('engineName') ?? '';
     if (isInsideAgentspaceIframe) {
       this.style.setProperty('--header-height', '0');
     }
@@ -2303,6 +2305,7 @@ export class Main extends LitElement {
       isIframe: isInsideAgentspaceIframe,
       parentOrigin,
       noCodeAgentId,
+      engineName,
     }
   }
 

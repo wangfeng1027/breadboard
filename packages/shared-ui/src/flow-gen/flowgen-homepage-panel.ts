@@ -160,6 +160,39 @@ export class FlowgenHomepagePanel extends LitElement {
           "GRAD" 0,
           "opsz" 48;
       }
+
+      .agentspace-loading {
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        background: white;
+        border-radius: 15px;
+        height: 85px;
+        width: 366px;
+        .spin-icon {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          padding: 16px;
+          .large-icon {
+            font-size: 28px;
+            color: #3271ea;
+          }
+        }
+        .loading-text {
+          .first-line {
+            font-size: 16px;
+            margin-top: 1.5em;
+            margin-bottom: 0;
+          }
+          .second-line {
+            font-size: 14px;
+            color: grey;
+            margin-top: 0.5em;
+          }
+        }
+        
+      }
     `,
   ];
 
@@ -197,7 +230,6 @@ export class FlowgenHomepagePanel extends LitElement {
     </div>`;
     const statusFeedback = html`<p>${this.#renderFeedback()}</p>`;
     return [
-      this.#state.status === "error" ? errorFeedback : statusFeedback,
       this.#renderInput(),
     ];
   }
@@ -244,6 +276,7 @@ export class FlowgenHomepagePanel extends LitElement {
 
   #renderInput() {
     const isGenerating = this.#state.status === "generating";
+    if (!isGenerating) return this.#renderAgentspaceLoading();
     return html`
       <div id="gradient-border-container">
         <bb-expanding-textarea
@@ -261,6 +294,21 @@ export class FlowgenHomepagePanel extends LitElement {
         </bb-expanding-textarea>
       </div>
     `;
+  }
+
+  #renderAgentspaceLoading() {
+    return html`
+    <div class="agentspace-loading">
+      <div class="spin-icon">
+        <span class=${classMap({ "g-icon": true, spin: true, "large-icon": true })}>progress_activity</span>
+      </div>
+      <div class="loading-text ">
+        <p class="first-line">Generating your flow</p>
+        <p class="second-line">Your flow will open automatically when ready<p>
+      </div>
+    </div>
+    
+   `
   }
 
   firstUpdated() {

@@ -9,6 +9,7 @@ export interface AgentspaceFlowContent {
     isIframe: boolean;
     parentOrigin: string;
     noCodeAgentId: string;
+    engineName: string;
 }
 
 // Url context

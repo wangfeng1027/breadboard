@@ -44,6 +44,7 @@ import {
   agentspaceUrlContext,
   type AgentspaceFlowContent,
 } from "../../contexts/agentspace-url-context.js";
+import { classMap } from "lit/directives/class-map.js";
 
 const MODE_KEY = "bb-project-listing-mode";
 const OVERFLOW_MENU_CLEARANCE = 4;
@@ -125,8 +126,16 @@ export class ProjectListing extends LitElement {
       }
 
       :host {
+        --background-color: var(--bb-neutral-0);
         display: block;
-        background: var(--bb-neutral-0);
+        background: var(--background-color);
+      }
+      #wrapper.inside-agentspace {
+        display: flex;
+        justify-content: center;
+        & #hero {
+          justify-content: center;
+        }
       }
 
       #wrapper {
@@ -729,8 +738,12 @@ export class ProjectListing extends LitElement {
       this.selectedLocation
     );
 
+    if (this.agentspaceFlowContent.isIframe) {
+      this.style.setProperty('--background-color', 'var(--bb-ui-50)');
+    }
+
     return html`
-      <div id="wrapper" ${ref(this.#wrapperRef)}>
+      <div id="wrapper" ${ref(this.#wrapperRef)} class=${classMap({ "inside-agentspace": this.agentspaceFlowContent.isIframe })}>
         <section id="hero">
            <bb-flowgen-homepage-panel></bb-flowgen-homepage-panel>
         </section>
