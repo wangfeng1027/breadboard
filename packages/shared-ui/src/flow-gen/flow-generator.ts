@@ -69,7 +69,7 @@ export class FlowGenerator {
         },
       ],
       appOptions: {
-        format: "FORMAT_GEMINI_FLOWS",
+        format: "FORMAT_AGENT_SPACE",
       },
     };
     if (context?.flow) {

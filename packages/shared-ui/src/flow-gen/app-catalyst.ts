@@ -15,7 +15,7 @@ import AppCatalystChatBgl from "../sideboards/sideboards-bgl/app-catalyst-chat.b
 export interface AppCatalystChatRequest {
   messages: AppCatalystContentChunk[];
   appOptions: {
-    format: "FORMAT_GEMINI_FLOWS";
+    format: "FORMAT_AGENT_SPACE";
   };
 }
 
