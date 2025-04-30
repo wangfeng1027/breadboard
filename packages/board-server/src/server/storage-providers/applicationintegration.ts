@@ -13,8 +13,8 @@ const auth = new GoogleAuth();
 const PROJECT_ID: string = "ip-prod-testing";
 const PROJECT_NUMBER: string = "267922162744";
 const REGION: string = "us-central1";
-const COLLECTION_ID: string = "default_collections";
-const ENGINE_ID: string = "default_engines";
+const COLLECTION_ID: string = "default_collection";
+const ENGINE_ID: string = "teamfood-v11";
 const ASSISTANT_ID: string = "default_assistant";
 const ENDPOINT: string = "https://stagingqualuscentral1-integrations.sandbox.googleapis.com";
 const PARENT_RESOURCE_NAME: string = `projects/${PROJECT_NUMBER}/locations/${REGION}/collections/${COLLECTION_ID}/engines/${ENGINE_ID}/assistants/${ASSISTANT_ID}`;
@@ -80,7 +80,7 @@ export class ApplicationIntegrationStorageProvider implements BoardServerStore {
 
   async listBoards(userId: string): Promise<StorageBoard[]> {
     console.log("Listing boards for user:", userId);
-    const agentFlows = await this.listAgentFlows(`creator=${userId}`);
+    const agentFlows = await this.listAgentFlows(COLLECTION_ID, ENGINE_ID, `creator="${userId}"`);
     if (agentFlows.length === 0) {
       return [];
     }
@@ -108,61 +108,70 @@ export class ApplicationIntegrationStorageProvider implements BoardServerStore {
 
   async updateBoard(board: StorageBoard): Promise<void> {
     console.log("Updating board:", board);
-    const agentFlowId = this.parseBoardId(board.name);
-    // First list to see if board exists
-    const agentFlows = await this.listAgentFlows(`creator=${board.owner} AND agent_flow_id=${agentFlowId}`);
-
-    // Create board if the board does not exist
-    if (agentFlows.length === 0) {
-      throw new Error("No boards found for path: @" + board.owner + "/" + board.name);
-    }
-
-    // Update board if the board exists
-    const existingAgentFlow = agentFlows[0];
-    const existingBoardConfig: StorageBoard = JSON.parse(existingAgentFlow.flowConfig);
-    const updatedBoardConfig: StorageBoard = {
-      ...existingBoardConfig,
-      ...board,
-    };
-    const updatedAgentFlow = await this.updateAgentFlow(updatedBoardConfig, existingAgentFlow.name);
-    const updatedBoard: StorageBoard = JSON.parse(updatedAgentFlow.flowConfig);
+    await this.upsertBoard(board);
     return;
   }
 
   async upsertBoard(board: Readonly<StorageBoard>): Promise<StorageBoard> {
     console.log("Upserting board");
     console.log("[Upserting board] Received Board:", board);
-    const agentFlowId = this.parseBoardId(board.name);
+  
+    var agentFlow;
+    try {
+      // Attempt to get the agent flow
+      const agentFlowId = this.parseBoardId(board.name);
+      console.log(`[Upserting board] Attempting to get agent flow with ID: ${agentFlowId}`);
+      agentFlow = await this.getAgentFlow(agentFlowId);
 
-    console.log(`[Upserting board] First List boards for creator: ${board.owner} , and agentFlowId ${agentFlowId}`);
-    const agentFlows = await this.listAgentFlows(`creator=${board.owner} AND agent_flow_id=${agentFlowId}`);
+    } catch (error) {
+      // Check if the error is a "not found" error
+      if (error instanceof Error && error.message.includes("404")) {
+        console.log(`[Upserting board] Agent flow not found, creating a new one.`);
+        const createdAgentFlow = await this.createAgentFlow(board);
+        console.log(`[Upserting board] Successfully created AgentFlow:`, createdAgentFlow.name);
+        const createdBoard: StorageBoard = JSON.parse(createdAgentFlow.flowConfig);
+        createdBoard.name = createdAgentFlow.name.split("/agentFlows/").pop() ?? "";
+        console.log(`[Upserting board] Update flowConfig with new board.name:`, createdBoard.name);
+        const updatedAgentFlow = await this.updateAgentFlow(createdBoard, createdAgentFlow.name);
+        const updatedBoard: StorageBoard = JSON.parse(updatedAgentFlow.flowConfig);
+        return updatedBoard;
+      } else {
+        // Rethrow the error for other cases
+        console.error(`[Upserting board] Error while getting agent flow:`, error);
+        throw error;
+      }
+    }
 
-    // Create board if the board does not exist
-    if (agentFlows.length === 0) {
-      console.log(`[Upserting board] No existing board found, need to create a new AgentFlow`);
+    if (!agentFlow) {
+      console.log(`[Upserting board] Agent flow not found or invalid, creating a new one.`);
       const createdAgentFlow = await this.createAgentFlow(board);
       console.log(`[Upserting board] Successfully created AgentFlow:`, createdAgentFlow.name);
       const createdBoard: StorageBoard = JSON.parse(createdAgentFlow.flowConfig);
       // Need to update the board.name with UUID from spanner.
-      createdBoard.name = createdAgentFlow.name.replace(PARENT_RESOURCE_NAME + "/agentFlows/", "");
+      createdBoard.name = createdAgentFlow.name.split("/agentFlows/").pop() ?? "";
       console.log(`[Upserting board] Update flowConfig with new board.name:`, createdBoard.name);
       const updatedAgentFlow = await this.updateAgentFlow(createdBoard, createdAgentFlow.name);
       const updatedBoard: StorageBoard = JSON.parse(updatedAgentFlow.flowConfig);
       return updatedBoard;
     }
 
-    console.log(`[Upserting board] Found existing board, need to update the AgentFlow`);
-    // Upsert board if the board exists
-    const existingAgentFlow = agentFlows[0];
-    const existingBoardConfig: StorageBoard = JSON.parse(existingAgentFlow.flowConfig);
+    console.log(`[Upserting board] Found existing agent flow, updating it.`);
+    // Clear the fields from board.graph.metadata
+    if (board.graph?.metadata) {
+      delete board.graph.metadata.noCodeAgentId;
+      delete board.graph.metadata.noCodeAgentParent;
+    }
+
+    // Update the agent flow if it exists
+    const existingBoardConfig: StorageBoard = JSON.parse(agentFlow.flowConfig);
     const updatedBoardConfig: StorageBoard = {
       ...existingBoardConfig,
       ...board,
     };
-
-    const updatedAgentFlow = await this.updateAgentFlow(updatedBoardConfig, existingAgentFlow.name);
+    const updatedAgentFlow = await this.updateAgentFlow(updatedBoardConfig, agentFlow.name);
     const updatedBoard: StorageBoard = JSON.parse(updatedAgentFlow.flowConfig);
     return updatedBoard;
+
   }
 
   async deleteBoard(_userId: string, boardName: string): Promise<void> {
@@ -173,7 +182,6 @@ export class ApplicationIntegrationStorageProvider implements BoardServerStore {
   private async updateAgentFlow(board: Readonly<StorageBoard>, agentFlowResourceName: string): Promise<any> {
     console.log("Updating agent flow:", agentFlowResourceName);
     var updateMask = "flowConfig";
-    const noCodeAgentId = board.graph?.metadata?.noCodeAgentId ?? "";
     const description = board.description ?? "";
     const displayName = board.displayName ?? "";
     if (description !== "" && board.description !== undefined) {
@@ -181,9 +189,6 @@ export class ApplicationIntegrationStorageProvider implements BoardServerStore {
     }
     if (displayName !== "" && board.displayName !== undefined) {
       updateMask += ",display_name";
-    }
-    if (noCodeAgentId !== "" && board.graph?.metadata?.noCodeAgentId !== undefined) {
-      updateMask += ",no_code_agent";
     }
     // Convert the board object to a JSON string
     const boardJsonString = JSON.stringify(board);
@@ -199,7 +204,7 @@ export class ApplicationIntegrationStorageProvider implements BoardServerStore {
         "Content-Type": "application/json",
         "x-goog-user-project": `${PROJECT_NUMBER}`,
       },
-      body: '{"name":"' + agentFlowResourceName + '","description":"' + description + '", "displayName":"' + displayName + '", "flowConfig":' + escapedBoardJsonString + ', "noCodeAgent":"' + noCodeAgentId + '"}',
+      body: '{"name":"' + agentFlowResourceName + '","description":"' + description + '", "displayName":"' + displayName + '", "flowConfig":' + escapedBoardJsonString + '}',
     });
 
     if (!response.ok) {
@@ -211,17 +216,28 @@ export class ApplicationIntegrationStorageProvider implements BoardServerStore {
 
   private async createAgentFlow(board: Readonly<StorageBoard>): Promise<any> {
     console.log("Creating agent flow");
+    const accessToken = await this.getOAuthAccessToken();
+    const noCodeAgentId = board.graph?.metadata?.noCodeAgentId ?? "";
+    const noCodeAgentParent = board.graph?.metadata?.noCodeAgentParent ?? "";
+    const description = board.description ?? "";
+    const displayName = board.displayName ?? "";
+    const creator = board.creatorEmail ?? board.owner;
+
+    // Clear the fields from board.graph.metadata
+    if (board.graph?.metadata) {
+      delete board.graph.metadata.noCodeAgentId;
+      delete board.graph.metadata.noCodeAgentParent;
+    }
     // Convert the board object to a JSON string
     const boardJsonString = JSON.stringify(board);
     // Escape the JSON string for embedding
     const escapedBoardJsonString = JSON.stringify(boardJsonString);
-    const accessToken = await this.getOAuthAccessToken();
-    const noCodeAgentId = board.graph?.metadata?.noCodeAgentId ?? "";
-    // Currently the noCodeAgentParent is not used, later on we will use this as in the request url as parent resource name.
-    const noCodeAgentParent = board.graph?.metadata?.noCodeAgentParent ?? "";
-    const description = board.description ?? "";
-    const displayName = board.displayName ?? "";
-    const url = `${ENDPOINT}/v1/${PARENT_RESOURCE_NAME}/agentFlows`;
+
+    var url = `${ENDPOINT}/v1/${PARENT_RESOURCE_NAME}/agentFlows`;
+    if (noCodeAgentParent !== "") {
+      const { project, location, collection, engine } = this.parseResourcePath(noCodeAgentParent);
+      url = `${ENDPOINT}/v1/projects/${PROJECT_NUMBER}/locations/${REGION}/collections/${collection}/engines/${engine}/agentFlows`;
+    }
     const response = await fetch(url, {
       method: "POST",
       headers: {
@@ -229,7 +245,7 @@ export class ApplicationIntegrationStorageProvider implements BoardServerStore {
         "Content-Type": "application/json",
         "x-goog-user-project": `${PROJECT_NUMBER}`,
       },
-      body: '{"description":"' + description + '", "displayName":"' + displayName + '", "flowConfig":' + escapedBoardJsonString + ', "creator":"' + board.owner + '", "noCodeAgent":"' + noCodeAgentId + '"}',
+      body: '{"description":"' + description + '", "displayName":"' + displayName + '", "flowConfig":' + escapedBoardJsonString + ', "creator":"' + creator + '", "noCodeAgent":"' + noCodeAgentId + '"}',
     });
 
 
@@ -280,9 +296,9 @@ export class ApplicationIntegrationStorageProvider implements BoardServerStore {
     }
   }
 
-  private async listAgentFlows(filter: string): Promise<any[]> {
+  private async listAgentFlows(collectionId: string, engineId: string, filter: string): Promise<any[]> {
     console.log("Listing agent flows with filter:", filter);
-    var url = `${ENDPOINT}/v1/${PARENT_RESOURCE_NAME}/agentFlows`;
+    var url = `${ENDPOINT}/v1/projects/${PROJECT_NUMBER}/locations/${REGION}/collections/${collectionId}/engines/${engineId}/assistants/${ASSISTANT_ID}/agentFlows`;
     if (filter !== "") {
       const encodedFilter = encodeURIComponent(filter);
       url += "?filter=" + encodedFilter;
@@ -314,11 +330,27 @@ export class ApplicationIntegrationStorageProvider implements BoardServerStore {
     return agentFlowId;
   }
 
+  parseResourcePath(resourcePath: string): Record<string, string> {
+    const regex = /^projects\/([^/]+)\/locations\/([^/]+)\/collections\/([^/]+)\/engines\/([^/]+)$/;
+    const match = resourcePath.match(regex);
+
+    if (!match) {
+      throw new Error("Invalid resource path format");
+    }
+
+    return {
+      project: match[1] ?? (() => { throw new Error("Project ID is undefined"); })(),
+      location: match[2] ?? (() => { throw new Error("Location is undefined"); })(),
+      collection: match[3] ?? (() => { throw new Error("Collection is undefined"); })(),
+      engine: match[4] ?? (() => { throw new Error("Engine is undefined"); })(),
+    };
+  }
+
   private async handleErrorResponse(response: Response, action: string): Promise<void> {
     console.log(`${action} - Response Status:`, response.status);
     console.log(`${action} - Response Headers:`, response.headers);
     console.log(`${action} - Response Body:`, await response.text());
-    throw new Error(`Failed to ${action}: ${response.statusText}`);
+    throw new Error(`Failed to ${action}: ${response.status} - ${response.statusText}`);
   }
 
   async loadReanimationState(
