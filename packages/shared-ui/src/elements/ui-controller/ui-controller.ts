@@ -828,7 +828,7 @@ export class UI extends LitElement {
                   this.sideNavItem = "app-view";
                 }}
               >
-                App view
+                Preview
               </button>
               <button
                 ?disabled=${this.sideNavItem === "activity"}
@@ -838,8 +838,6 @@ export class UI extends LitElement {
               >
                 Activity
               </button>
-            </div>
-            <div id="side-nav-controls-right">
               ${selectionCount > 0
                 ? html`<button
                     ?disabled=${this.sideNavItem === "editor"}
@@ -850,7 +848,8 @@ export class UI extends LitElement {
                     Editor
                   </button>`
                 : nothing}
-
+            </div>
+            <div id="side-nav-controls-right">
               ${this.sideNavItem === "app-view" && this.topGraphResult && this.topGraphResult.log.length > 0
                 ? html`<button
                     id="back"
