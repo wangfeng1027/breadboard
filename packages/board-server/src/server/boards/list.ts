@@ -7,6 +7,7 @@
 import type { NextFunction, Request, Response } from "express";
 
 import { asPath, type BoardServerStore, type StorageBoard } from "../store.js";
+import { ApplicationIntegrationStorageProvider } from "../storage-providers/applicationintegration.js";
 
 type BoardListEntry = {
   title: string;
@@ -24,8 +25,16 @@ async function list(req: Request, res: Response, next: NextFunction) {
     const store: BoardServerStore = req.app.locals.store;
     console.log("Store type is:", store.constructor.name);
     const userId = res.locals.userId;
-    const boards: StorageBoard[] = await store.listBoards(userId);
-
+    const userEmail = res.locals.email;
+    let boards: StorageBoard[] = [];
+    if (store instanceof ApplicationIntegrationStorageProvider){
+      console.log("List boards with IP provider and will list boards by user email");
+      boards = await store.listBoards(userEmail);
+    } else {
+      console.log("List boards with other providers and will list boards by user id");
+      boards = await store.listBoards(userId);
+    }
+    // const boards: StorageBoard[] = await store.listBoards(userId);
     const response = boards.map((board) => toListEntry(userId, board));
     res.json(response);
   } catch (err) {

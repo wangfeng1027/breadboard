@@ -20,6 +20,7 @@ export type StorageBoard = {
   tags: string[];
   thumbnail: string;
   graph?: GraphDescriptor;
+  creatorEmail?: string;
 };
 
 export class InvalidRequestError extends Error {

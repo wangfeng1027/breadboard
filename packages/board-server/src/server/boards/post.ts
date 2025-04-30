@@ -37,6 +37,7 @@ async function update(
 
   const boardId: BoardId = res.locals.boardId;
   const userId: string = res.locals.userId;
+  const userEmail: string = res.locals.email;
 
   // If an owner is given, it must match the current user
   // TODO factor this check to middleware
@@ -57,6 +58,7 @@ async function update(
       tags: graph.metadata?.tags ?? [],
       thumbnail: "",
       graph: graph,
+      creatorEmail: userEmail,
     });
     // TODO what does the client do with this response, and why is the property
     // called "created"?

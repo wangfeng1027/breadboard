@@ -21,6 +21,8 @@ async function create(req: Request, res: Response): Promise<void> {
   const request = req.body as CreateRequest;
 
   const userId: string = res.locals.userId;
+  const userEmail: string = res.locals.email;
+  request.creatorEmail = userEmail;
   if (!request.owner) {
     request.owner = userId;
   } else if (request.owner !== userId) {
@@ -29,6 +31,8 @@ async function create(req: Request, res: Response): Promise<void> {
   }
 
   try {
+    console.log("Printing upsert board request");
+    console.dir(request);
     const result = await store.upsertBoard(request);
     res.json({ ...result,  path: asPath(result.owner, result.name) });
   } catch (e) {
