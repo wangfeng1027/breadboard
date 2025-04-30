@@ -7,7 +7,7 @@ import * as boardServer from "@breadboard-ai/board-server";
 const server = express();
 
 const boardServerConfig = boardServer.createServerConfig({
-  storageProvider: "in-memory",
+  storageProvider: "application-integration",
 });
 const connectionServerConfig = await connectionServer.createServerConfig();
 

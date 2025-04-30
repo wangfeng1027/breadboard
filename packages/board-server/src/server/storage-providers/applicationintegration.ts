@@ -1,4 +1,4 @@
-import { blank, type ReanimationState } from "@google-labs/breadboard";
+import { blank, board, type ReanimationState } from "@google-labs/breadboard";
 import type { BoardServerStore, ServerInfo, StorageBoard } from "../store.js";
 import { GoogleAuth } from 'google-auth-library';
 
@@ -11,7 +11,14 @@ export const APPLICATION_INTEGRATION_SERVER_INFO: ServerInfo = {
 const auth = new GoogleAuth();
 
 const PROJECT_ID: string = "ip-prod-testing";
+const PROJECT_NUMBER: string = "267922162744";
 const REGION: string = "us-central1";
+const COLLECTION_ID: string = "default_collections";
+const ENGINE_ID: string = "default_engines";
+const ASSISTANT_ID: string = "default_assistant";
+const ENDPOINT: string = "https://stagingqualuscentral1-integrations.sandbox.googleapis.com";
+const PARENT_RESOURCE_NAME: string = `projects/${PROJECT_NUMBER}/locations/${REGION}/collections/${COLLECTION_ID}/engines/${ENGINE_ID}/assistants/${ASSISTANT_ID}`;
+
 
 export class ApplicationIntegrationStorageProvider implements BoardServerStore {
 
@@ -43,8 +50,11 @@ export class ApplicationIntegrationStorageProvider implements BoardServerStore {
    * @returns {Promise<string>} - The OAuth 2.0 Access Token string.
    */
   async getOAuthAccessToken(): Promise<string> {
+    // For locall test, comment out the try/catch block and uncomment the AUTH_TOKEN line, and add your own auth token.
+    // const AUTH_TOKEN = "";
+    // return AUTH_TOKEN;
+
     try {
-      console.log('Attempting to fetch OAuth 2.0 Access token...');
       // The getAccessToken method handles fetching/caching using ADC.
       const accessToken = await auth.getAccessToken();
 
@@ -63,32 +73,22 @@ export class ApplicationIntegrationStorageProvider implements BoardServerStore {
     owner?: string;
     requestingUserId?: string;
   }): Promise<StorageBoard | null> {
-    console.log("Application Integration Storage Load board");
-    const { name, owner, requestingUserId = "" } = opts;
-    const integrationVersions = await this.listIntegrationVersions(requestingUserId, name);
-    if (integrationVersions.length === 0) {
-      return null;
-    }else{
-      const board =  this.getBoardConfigFromIntegration(integrationVersions[0]);
-      return board;
-    }
+    console.log("Loading board:", opts.name);
+    const agentFlow = await this.getAgentFlow(opts.name);
+    return JSON.parse(agentFlow.flowConfig);
   }
 
-  async listBoards(userId: string): Promise<StorageBoard[]> {  
-    console.log("Application Integration Storage List board");
-    // Fetch boards from the external API
-    const integrationVersions = await this.listIntegrationVersions(userId,"-");
+  async listBoards(userId: string): Promise<StorageBoard[]> {
+    console.log("Listing boards for user:", userId);
+    const agentFlows = await this.listAgentFlows(`creator=${userId}`);
+    if (agentFlows.length === 0) {
+      return [];
+    }
 
-    // Extract boardConfig for each integration
-    const boardConfigs = integrationVersions.map((integration: any) => {
-      try {
-        return this.getBoardConfigFromIntegration(integration);
-      } catch (error) {
-        console.error(`Failed to extract boardConfig for integration: ${integration.name}`, error);
-        return null; // Handle invalid or missing boardConfig gracefully
-      }
+    const boardConfigs = agentFlows.map((agentFlow: any) => {
+      return JSON.parse(agentFlow.flowConfig);
     }).filter((config) => config !== null); // Remove null entries
-    
+
     return boardConfigs as StorageBoard[];
   }
 
@@ -102,203 +102,225 @@ export class ApplicationIntegrationStorageProvider implements BoardServerStore {
       thumbnail: "",
       graph: blank(),
     };
-    console.log("Application Integration Storage Create board");
+    console.log("Creating board:", board);
     await this.upsertBoard(board);
   }
 
   async updateBoard(board: StorageBoard): Promise<void> {
-    console.log("Application Integration Storage Update board");
-
+    console.log("Updating board:", board);
+    const agentFlowId = this.parseBoardId(board.name);
     // First list to see if board exists
-    const integrationVersions = await this.listIntegrationVersions(board.owner, board.name);
+    const agentFlows = await this.listAgentFlows(`creator=${board.owner} AND agent_flow_id=${agentFlowId}`);
 
     // Create board if the board does not exist
-    if (integrationVersions.length === 0) {
-      throw new Error("No boards found for path: @" + board.owner +"/" + board.name);
+    if (agentFlows.length === 0) {
+      throw new Error("No boards found for path: @" + board.owner + "/" + board.name);
     }
 
     // Update board if the board exists
-    const existingIntegrationVersion = integrationVersions[0];
-    const existingBoardConfig = this.getBoardConfigFromIntegration(existingIntegrationVersion);
+    const existingAgentFlow = agentFlows[0];
+    const existingBoardConfig: StorageBoard = JSON.parse(existingAgentFlow.flowConfig);
     const updatedBoardConfig: StorageBoard = {
       ...existingBoardConfig,
       ...board,
     };
-    const updatedIntgrationVersion =  await this.updateIntegrationVersion(updatedBoardConfig, existingIntegrationVersion.name);
-    const updatedBoard: StorageBoard = this.getBoardConfigFromIntegration(updatedIntgrationVersion);
+    const updatedAgentFlow = await this.updateAgentFlow(updatedBoardConfig, existingAgentFlow.name);
+    const updatedBoard: StorageBoard = JSON.parse(updatedAgentFlow.flowConfig);
     return;
   }
 
   async upsertBoard(board: Readonly<StorageBoard>): Promise<StorageBoard> {
-    console.log("Application Integration Storage Upsert board");
+    console.log("Upserting board");
+    console.log("[Upserting board] Received Board:", board);
+    const agentFlowId = this.parseBoardId(board.name);
 
-    console.log("Upsert board: First to List Integration Versions");
-    // First list to see if board exists
-    const integrationVersions = await this.listIntegrationVersions(board.owner, board.name);
-    
+    console.log(`[Upserting board] First List boards for creator: ${board.owner} , and agentFlowId ${agentFlowId}`);
+    const agentFlows = await this.listAgentFlows(`creator=${board.owner} AND agent_flow_id=${agentFlowId}`);
+
     // Create board if the board does not exist
-    if (integrationVersions.length === 0) {
-      console.log("Upsert board: Need to create Integration Versions");
-      const createdIntegrationVersion =  await this.createIntegrationVersion(board);
-      const createdBoard: StorageBoard = this.getBoardConfigFromIntegration(createdIntegrationVersion);
-      return createdBoard;
+    if (agentFlows.length === 0) {
+      console.log(`[Upserting board] No existing board found, need to create a new AgentFlow`);
+      const createdAgentFlow = await this.createAgentFlow(board);
+      console.log(`[Upserting board] Successfully created AgentFlow:`, createdAgentFlow.name);
+      const createdBoard: StorageBoard = JSON.parse(createdAgentFlow.flowConfig);
+      // Need to update the board.name with UUID from spanner.
+      createdBoard.name = createdAgentFlow.name.replace(PARENT_RESOURCE_NAME + "/agentFlows/", "");
+      console.log(`[Upserting board] Update flowConfig with new board.name:`, createdBoard.name);
+      const updatedAgentFlow = await this.updateAgentFlow(createdBoard, createdAgentFlow.name);
+      const updatedBoard: StorageBoard = JSON.parse(updatedAgentFlow.flowConfig);
+      return updatedBoard;
     }
-    console.log("Upsert board: Just update existing Integration Versions");
+
+    console.log(`[Upserting board] Found existing board, need to update the AgentFlow`);
     // Upsert board if the board exists
-    const existingIntegrationVersion = integrationVersions[0];
-    const existingBoardConfig = this.getBoardConfigFromIntegration(existingIntegrationVersion);
+    const existingAgentFlow = agentFlows[0];
+    const existingBoardConfig: StorageBoard = JSON.parse(existingAgentFlow.flowConfig);
     const updatedBoardConfig: StorageBoard = {
       ...existingBoardConfig,
       ...board,
     };
 
-    const updatedIntgrationVersion =  await this.updateIntegrationVersion(updatedBoardConfig, existingIntegrationVersion.name);
-    const updatedBoard: StorageBoard = this.getBoardConfigFromIntegration(updatedIntgrationVersion);
+    const updatedAgentFlow = await this.updateAgentFlow(updatedBoardConfig, existingAgentFlow.name);
+    const updatedBoard: StorageBoard = JSON.parse(updatedAgentFlow.flowConfig);
     return updatedBoard;
   }
 
   async deleteBoard(_userId: string, boardName: string): Promise<void> {
-    console.log("Application Integration Storage Delete board");
-    await this.deleteIntegrationVersions(_userId, boardName);
+    console.log("Deleting board:", boardName);
+    await this.deleteAgentFlow(boardName);
   }
 
-
-  async updateIntegrationVersion(board: Readonly<StorageBoard>, integrationVersionName: string): Promise<any> {
-    const url = `https://integrations.googleapis.com/v1/${integrationVersionName}?update_mask=integration_parameters`;
+  private async updateAgentFlow(board: Readonly<StorageBoard>, agentFlowResourceName: string): Promise<any> {
+    console.log("Updating agent flow:", agentFlowResourceName);
+    var updateMask = "flowConfig";
+    const noCodeAgentId = board.graph?.metadata?.noCodeAgentId ?? "";
+    const description = board.description ?? "";
+    const displayName = board.displayName ?? "";
+    if (description !== "" && board.description !== undefined) {
+      updateMask += ",description";
+    }
+    if (displayName !== "" && board.displayName !== undefined) {
+      updateMask += ",display_name";
+    }
+    if (noCodeAgentId !== "" && board.graph?.metadata?.noCodeAgentId !== undefined) {
+      updateMask += ",no_code_agent";
+    }
     // Convert the board object to a JSON string
     const boardJsonString = JSON.stringify(board);
     // Escape the JSON string for embedding
     const escapedBoardJsonString = JSON.stringify(boardJsonString);
+
+    const url = `${ENDPOINT}/v1/${agentFlowResourceName}?update_mask=${updateMask}`;
     const accessToken = await this.getOAuthAccessToken();
     const response = await fetch(url, {
       method: "PATCH",
       headers: {
         "Authorization": `Bearer ${accessToken}`,
         "Content-Type": "application/json",
+        "x-goog-user-project": `${PROJECT_NUMBER}`,
       },
-      body: `{"name": "${integrationVersionName}","integrationParameters": [ {"key": "boardConfig", "dataType": "STRING_VALUE", "defaultValue": {"stringValue": `+ escapedBoardJsonString + '}}]}',
+      body: '{"name":"' + agentFlowResourceName + '","description":"' + description + '", "displayName":"' + displayName + '", "flowConfig":' + escapedBoardJsonString + ', "noCodeAgent":"' + noCodeAgentId + '"}',
     });
-    if (!response.ok) {
-      throw new Error(`Failed to update board: ${response.statusText}`);
-    }    
 
-    return response.json();
+    if (!response.ok) {
+      await this.handleErrorResponse(response, "UpdateAgentFlow");
+    }
+
+    return await response.json();
   }
 
-  async createIntegrationVersion(board: Readonly<StorageBoard>): Promise<any> {
-    const integrationName = board.name.endsWith(".bgl.json")
-        ? board.name.slice(0, -".bgl.json".length)
-        : board.name;
-    const url = `https://integrations.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/integrations/${board.owner}-${integrationName}/versions`;
+  private async createAgentFlow(board: Readonly<StorageBoard>): Promise<any> {
+    console.log("Creating agent flow");
     // Convert the board object to a JSON string
     const boardJsonString = JSON.stringify(board);
     // Escape the JSON string for embedding
     const escapedBoardJsonString = JSON.stringify(boardJsonString);
     const accessToken = await this.getOAuthAccessToken();
+    const noCodeAgentId = board.graph?.metadata?.noCodeAgentId ?? "";
+    // Currently the noCodeAgentParent is not used, later on we will use this as in the request url as parent resource name.
+    const noCodeAgentParent = board.graph?.metadata?.noCodeAgentParent ?? "";
+    const description = board.description ?? "";
+    const displayName = board.displayName ?? "";
+    const url = `${ENDPOINT}/v1/${PARENT_RESOURCE_NAME}/agentFlows`;
     const response = await fetch(url, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${accessToken}`,
         "Content-Type": "application/json",
+        "x-goog-user-project": `${PROJECT_NUMBER}`,
       },
-      body: '{"description":"'+ board.owner +'", "integrationParameters": [ {"key": "boardConfig", "dataType": "STRING_VALUE", "defaultValue": {"stringValue": '+ escapedBoardJsonString + '}}]}',
+      body: '{"description":"' + description + '", "displayName":"' + displayName + '", "flowConfig":' + escapedBoardJsonString + ', "creator":"' + board.owner + '", "noCodeAgent":"' + noCodeAgentId + '"}',
     });
-    if (!response.ok) {
-      throw new Error(`Failed to create board: ${response.statusText}`);
-    }    
 
-    return response.json();
+
+    if (!response.ok) {
+      await this.handleErrorResponse(response, "CreateAgentFlow");
+    }
+    const data = await response.json();
+    return data;
   }
 
-  private async deleteIntegrationVersions(userId:string, boardName:string): Promise<void> {
-    console.log("ApplicationIntegrationStorage Delete Board");
-    const integrationVersinos = await this.listIntegrationVersions(userId, boardName);
-    if (integrationVersinos.length === 0) {
-      console.log("No boards found for path: @" + userId +"/" + boardName);
-      throw new Error("No boards found for path: @" + userId +"/" + boardName);
-    }
-  
-    var integrationName = boardName.endsWith(".bgl.json")
-        ? boardName.slice(0, -".bgl.json".length)
-        : boardName;
-    integrationName = userId + "-" + integrationName;
 
-    const url = `https://integrations.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/integrations/${integrationName}`;
-    const accessToken = await this.getOAuthAccessToken();
-    const response = await fetch(url, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
-    if (!response.ok) {
-      throw new Error(`Failed to delete boards: ${response.statusText}`);
+  private async getAgentFlow(boardName: string): Promise<any> {
+    console.log("Getting agent flow:", boardName);
+    if (boardName === "") {
+      throw new Error("Board name is empty");
     }
-  }
-
-  private async listIntegrationVersions(userId:string, integrationName: string): Promise<any[]> {
-    if (integrationName !== "-"){
-      integrationName = integrationName.endsWith(".bgl.json")
-        ? integrationName.slice(0, -".bgl.json".length)
-        : integrationName;
-      integrationName = userId + "-" + integrationName;
-    }
-    var url = `https://integrations.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/integrations/${integrationName}/versions?filter=description=${userId}`;
-    if (userId === "") {
-      url = `https://integrations.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/integrations/${integrationName}/versions`;
-    }
+    const agentFlowId = this.parseBoardId(boardName);
+    const url = `${ENDPOINT}/v1/${PARENT_RESOURCE_NAME}/agentFlows/${agentFlowId}`;
     const accessToken = await this.getOAuthAccessToken();
     const response = await fetch(url, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${accessToken}`,
+        "x-goog-user-project": `${PROJECT_NUMBER}`,
       },
     });
-  
     if (!response.ok) {
-      throw new Error(`Failed to fetch boards: ${response.statusText}`);
+      await this.handleErrorResponse(response, "GetAgentFlow");
     }
+    return await response.json();
+  }
+
+  private async deleteAgentFlow(boardName: string): Promise<void> {
+    console.log("Deleting agent flow:", boardName);
+    const agentFlowId = this.parseBoardId(boardName);
+    const url = `${ENDPOINT}/v1/${PARENT_RESOURCE_NAME}/agentFlows/${agentFlowId}`;
+    const accessToken = await this.getOAuthAccessToken();
+
+    const response = await fetch(url, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "x-goog-user-project": `${PROJECT_NUMBER}`,
+      },
+    });
+    if (!response.ok) {
+      await this.handleErrorResponse(response, "DeleteAgentFlow");
+    }
+  }
+
+  private async listAgentFlows(filter: string): Promise<any[]> {
+    console.log("Listing agent flows with filter:", filter);
+    var url = `${ENDPOINT}/v1/${PARENT_RESOURCE_NAME}/agentFlows`;
+    if (filter !== "") {
+      const encodedFilter = encodeURIComponent(filter);
+      url += "?filter=" + encodedFilter;
+    }
+    const accessToken = await this.getOAuthAccessToken();
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "x-goog-user-project": `${PROJECT_NUMBER}`,
+      },
+    });
+    if (!response.ok) {
+      await this.handleErrorResponse(response, "ListAgentFlows");
+    }
+
     const data = await response.json();
-    if (data.integrationVersions === undefined) {
+    if (data.agentFlows === undefined) {
       return [];
     }
-    // Group integrationVersions by integration name and keep only the latest version
-    const latestVersionsByIntegration: Record<string, any> = {};
-  
-    data.integrationVersions.forEach((version: any) => {
-      // Extract the integration name from the `name` field
-      const match = version.name.match(/integrations\/([^/]+)/);
-      if (!match) return;
+    return data.agentFlows;
+  }
 
-      const integrationName = match[1];
-  
-      // Compare updateTime and keep the latest version
-      if (
-        !latestVersionsByIntegration[integrationName] ||
-        new Date(version.updateTime).getTime() >
-          new Date(latestVersionsByIntegration[integrationName].updateTime).getTime()
-      ) {
-        latestVersionsByIntegration[integrationName] = version;
-      }
-    });
-    // Convert the result back to an array
-    const latestVersions = Object.values(latestVersionsByIntegration);
-    return latestVersions;
+  parseBoardId(boardName: string): string {
+    const agentFlowId = boardName.endsWith(".bgl.json")
+      ? boardName.slice(0, -".bgl.json".length)
+      : boardName;
+    return agentFlowId;
   }
-  
-   getBoardConfigFromIntegration(integration: any): StorageBoard {
-    const boardConfigParam = integration.integrationParameters.find(
-      (param: any) => param.key === "boardConfig"
-    );
-  
-    if (!boardConfigParam || !boardConfigParam.defaultValue?.stringValue) {
-      throw new Error("boardConfig parameter is missing or invalid");
-    }
-    const boardJson = JSON.parse(boardConfigParam.defaultValue.stringValue)
-    // Parse the JSON string into a StorageBoard object
-    return boardJson;
+
+  private async handleErrorResponse(response: Response, action: string): Promise<void> {
+    console.log(`${action} - Response Status:`, response.status);
+    console.log(`${action} - Response Headers:`, response.headers);
+    console.log(`${action} - Response Body:`, await response.text());
+    throw new Error(`Failed to ${action}: ${response.statusText}`);
   }
-  
+
   async loadReanimationState(
     _user: string,
     _ticket: string
