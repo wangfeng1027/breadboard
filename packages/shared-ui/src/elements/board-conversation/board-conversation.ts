@@ -753,11 +753,6 @@ export class BoardConversation extends LitElement {
 
                   const styles: Record<string, string> = {};
 
-                  if(event.type === "node" && event.node.descriptor.type  !== "embed://a2/a2.bgl.json#module:render-outputs") {
-                    return nothing;
-                    
-                  }
-
                   if (
                     event.type === "node" &&
                     event.node.descriptor.metadata &&
