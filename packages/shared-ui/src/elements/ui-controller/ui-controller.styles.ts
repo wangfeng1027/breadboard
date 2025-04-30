@@ -644,7 +644,6 @@ export const styles = css`
 
       & #share {
         width: 20px;
-        height: 20px;
         background: var(--bb-icon-share) center center / 20px 20px no-repeat;
         font-size: 0;
         margin: 0 0 var(--bb-grid-size-3) 0;
@@ -662,6 +661,23 @@ export const styles = css`
             opacity: 1;
           }
         }
+      }
+
+      & #back {
+          font-size: 0;
+          background: var(--bb-icon-refresh) center center / 20px 20px no-repeat;
+          margin: 0 0 var(--bb-grid-size-2) 0;
+          border: none;
+          opacity: 0.5;
+
+          &:not([disabled]) {
+            cursor: pointer;
+
+            &:hover,
+            &:focus {
+              opacity: 1;
+            }
+          }
       }
     }
 

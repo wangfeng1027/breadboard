@@ -49,6 +49,7 @@ import { createRef, ref, Ref } from "lit/directives/ref.js";
 import {
   CommandsSetSwitchEvent,
   NodeConfigurationUpdateRequestEvent,
+  StopEvent,
   ThemeEditRequestEvent,
   ToastEvent,
   ToastType,
@@ -850,6 +851,16 @@ export class UI extends LitElement {
                   </button>`
                 : nothing}
 
+              ${this.sideNavItem === "app-view" && this.topGraphResult && this.topGraphResult.log.length > 0
+                ? html`<button
+                    id="back"
+                    @click=${() => {
+                      this.dispatchEvent(new StopEvent(true));
+                    }}
+                  >
+                    Restart
+                </button>`
+                : nothing}
               <button
                 id="share"
                 @click=${async () => {
