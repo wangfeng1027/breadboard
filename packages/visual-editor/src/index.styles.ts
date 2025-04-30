@@ -203,7 +203,6 @@ export const styles = css`
 
   header {
     background: var(--bb-neutral-0);
-    border-bottom: 1px solid var(--bb-neutral-300);
     display: block;
     color: var(--bb-neutral-700);
     z-index: 1;
