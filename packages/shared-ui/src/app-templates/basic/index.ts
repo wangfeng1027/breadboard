@@ -568,6 +568,7 @@ export class Template extends LitElement implements AppTemplate {
           }
 
           value = "";
+          input.value = "";
         } else {
           inputValues[input.name] = value as NodeValue;
         }
