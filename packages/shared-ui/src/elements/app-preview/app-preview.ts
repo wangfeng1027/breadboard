@@ -423,6 +423,7 @@ export class AppPreview extends LitElement {
       this.#appTemplate.events = events;
       this.#appTemplate.status = this.status;
 
+      this.#appTemplate.showShareButton = false;
     }
 
     return html`

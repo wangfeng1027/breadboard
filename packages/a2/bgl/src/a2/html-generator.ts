@@ -27,7 +27,8 @@ function base64DecodeNonAsciiStandard(base64String: string) {
 async function callGenWebpage(
   instruction: string,
   content: LLMContent[],
-  renderMode: string
+  renderMode: string,
+  modelName: string
 ): Promise<Outcome<LLMContent>> {
   const executionInputs: ContentMap = {};
   const inputParameters: string[] = [];
@@ -85,6 +86,7 @@ async function callGenWebpage(
       options: {
         disablePromptRewrite: true,
         renderMode: renderMode,
+        modelName: modelName,
       },
     },
     execution_inputs: executionInputs,
@@ -98,7 +100,14 @@ async function callGenWebpage(
   console.log("response");
   console.log(response);
   if (!ok(response)) {
-    return err("Webpage generation failed: " + response.$error);
+    let errorMessage;
+    if (response.$error.includes("The service is currently unavailable")) {
+      errorMessage =
+        "Request timed out. The model may be experiencing heavy load";
+    } else {
+      errorMessage = response.$error;
+    }
+    return err("Webpage generation failed: " + errorMessage);
   }
 
   let returnVal;

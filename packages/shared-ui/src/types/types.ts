@@ -578,6 +578,7 @@ export interface AppTemplate extends LitElement {
   readOnly: boolean;
   events: InspectableRunEvent[] | null;
   status: STATUS;
+  showShareButton: boolean;
 }
 
 export interface Utterance {

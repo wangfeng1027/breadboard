@@ -17,6 +17,7 @@ export type EntryInputs = {
   "p-chat": boolean;
   "p-list": boolean;
   "b-system-instruction": LLMContent;
+  "config$ask-user"?: boolean;
 } & Params;
 
 export type DescribeInputs = {
@@ -60,22 +61,17 @@ async function invoke({
   };
 }
 
-async function describe({ inputs: { description } }: DescribeInputs) {
+async function describe({
+  inputs: { description, "config$ask-user": chat },
+}: DescribeInputs) {
   const settings = await readSettings();
+  const chatSchema: BehaviorSchema[] = chat ? ["hint-chat-mode"] : [];
   const experimental =
     ok(settings) && !!settings["Show Experimental Components"];
   const template = new Template(description);
   let extra: Record<string, Schema> = {};
   if (experimental) {
     extra = {
-      "p-chat": {
-        type: "boolean",
-        title: "Chat with User",
-        behavior: ["config", "hint-preview"],
-        icon: "chat",
-        description:
-          "When checked, this step will chat with the user, asking to review work, requesting additional information, etc.",
-      },
       "p-list": {
         type: "boolean",
         title: "Make a list",
@@ -83,13 +79,6 @@ async function describe({ inputs: { description } }: DescribeInputs) {
         icon: "summarize",
         description:
           "When checked, this step will try to create a list as its output. Make sure that the prompt asks for a list of some sort",
-      },
-      "b-system-instruction": {
-        type: "object",
-        behavior: ["llm-content", "config", "hint-advanced"],
-        title: "System Instruction",
-        description: "The system instruction for the model",
-        default: JSON.stringify(defaultSystemInstruction()),
       },
     };
   }
@@ -111,10 +100,25 @@ async function describe({ inputs: { description } }: DescribeInputs) {
           title: "Context in",
           behavior: ["main-port"],
         },
+        "p-chat": {
+          type: "boolean",
+          title: "Refine based on user input",
+          behavior: ["config", "hint-preview"],
+          icon: "chat",
+          description:
+            "When checked, this step will chat with the user, asking to review work, requesting additional information, etc.",
+        },
+        "b-system-instruction": {
+          type: "object",
+          behavior: ["llm-content", "config", "hint-advanced"],
+          title: "System Instruction",
+          description: "The system instruction for the model",
+          default: JSON.stringify(defaultSystemInstruction()),
+        },
         ...extra,
         ...template.schemas(),
       },
-      behavior: ["at-wireable"],
+      behavior: ["at-wireable", ...chatSchema],
       ...template.requireds(),
     } satisfies Schema,
     outputSchema: {

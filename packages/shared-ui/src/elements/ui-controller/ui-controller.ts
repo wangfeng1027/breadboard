@@ -243,6 +243,7 @@ export class UI extends LitElement {
   }
 
   editorRender = 0;
+  #preventAutoSwitchToEditor = false;
   protected willUpdate(changedProperties: PropertyValues): void {
     if (changedProperties.has("isShowingBoardActivityOverlay")) {
       this.editorRender++;
@@ -290,6 +291,12 @@ export class UI extends LitElement {
       );
     }
 
+    if (newSelectionCount > 0 && changedProperties.has("sideNavItem")) {
+      this.#preventAutoSwitchToEditor = true;
+    } else if (newSelectionCount === 0 && this.#preventAutoSwitchToEditor) {
+      this.#preventAutoSwitchToEditor = false;
+    }
+
     if (newSelectionCount === 0 && this.sideNavItem === "editor") {
       this.sideNavItem = "app-view";
     }
@@ -297,7 +304,7 @@ export class UI extends LitElement {
     if (
       newSelectionCount > 0 &&
       this.sideNavItem !== "editor" &&
-      !changedProperties.has("sideNavItem")
+      !this.#preventAutoSwitchToEditor
     ) {
       this.sideNavItem = "editor";
     }
@@ -771,11 +778,14 @@ export class UI extends LitElement {
           active: this.sideNavItem === "activity",
         })}
       >
-        ${this.#renderEditHistoryButtons()}
-        ${this.#showEditHistory
-          ? this.#renderEditHistory()
-          : this.#renderActivity()}
+        ${this.#renderActivity()}
       </div>`,
+      html`<bb-edit-history-panel
+        class=${classMap({
+          active: this.sideNavItem === "edit-history",
+        })}
+        .history=${this.history}
+      ></bb-edit-history-panel>`,
     ];
 
     let assetOrganizer: HTMLTemplateResult | symbol = nothing;
@@ -809,7 +819,7 @@ export class UI extends LitElement {
       <bb-splitter
         direction=${"horizontal"}
         name="layout-main"
-        split="[0.75, 0.25]"
+        split="[0.70, 0.30]"
         @pointerdown=${() => {
           this.showThemeDesigner = false;
         }}
@@ -860,6 +870,16 @@ export class UI extends LitElement {
                     Restart
                 </button>`
                 : nothing}
+              <button
+                ?disabled=${this.sideNavItem === "edit-history"}
+                @click=${() => {
+                  this.sideNavItem = "edit-history";
+                }}
+                aria-label="Edit History"
+              >
+                <span class="g-icon">history</span>
+              </button>
+
               <button
                 id="share"
                 @click=${async () => {

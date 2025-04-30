@@ -59,7 +59,6 @@ async function callVideoGen(
   disablePromptRewrite: boolean,
   aspectRatio: string
 ): Promise<LLMContent> {
-  // TODO(askerryryan): Respect disablePromptRewrite;
   const executionInputs: ContentMap = {};
   const encodedPrompt = btoa(unescape(encodeURIComponent(prompt)));
   executionInputs["text_instruction"] = {
@@ -109,6 +108,9 @@ async function callVideoGen(
       inputParameters: inputParameters,
       systemPrompt: "",
       output: OUTPUT_NAME,
+      options: {
+        disablePromptRewrite,
+      },
     },
     execution_inputs: executionInputs,
   } satisfies ExecuteStepRequest;
@@ -116,8 +118,6 @@ async function callVideoGen(
   console.log("REQUEST:");
   console.log(body);
   const response = await executeStep(body);
-  console.log("RESPONSE:");
-  console.log(response);
   if (!ok(response)) {
     return toLLMContent("Video generation failed: " + response.$error);
   }

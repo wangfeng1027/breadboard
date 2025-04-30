@@ -55,7 +55,7 @@ import {
 import { when} from "lit/directives/when.js";
 import { repeat } from "lit/directives/repeat.js";
 import { createRef, ref, Ref } from "lit/directives/ref.js";
-import { NodeValue, OutputValues } from "@breadboard-ai/types";
+import { LLMContent, NodeValue, OutputValues } from "@breadboard-ai/types";
 import { isLLMContentArrayBehavior, isLLMContentBehavior } from "../../utils";
 import { extractError } from "../shared/utils/utils";
 import { AssetShelf } from "../../elements/elements";
@@ -83,6 +83,7 @@ interface Turn {
   reply? : TopGraphRunResult;
   fixedReply?: string;
 }
+import { maybeConvertToYouTube } from "../../utils/substitute-input";
 
 @customElement("app-basic")
 export class Template extends LitElement implements AppTemplate {
@@ -125,6 +126,9 @@ export class Template extends LitElement implements AppTemplate {
 
   @property({ reflect: true, type: Boolean })
   accessor hasRenderedSplash = false;
+
+  @property({ reflect: true, type: Boolean })
+  accessor showShareButton = true;
 
   @property()
   accessor readOnly = true;
@@ -549,23 +553,23 @@ export class Template extends LitElement implements AppTemplate {
           canProceed = false;
         }
 
-        if (typeof input.value === "string") {
+        let value: string | LLMContent = input.value;
+        if (typeof value === "string") {
+          value = maybeConvertToYouTube(input.value);
+        }
+
+        if (typeof value === "string") {
           if (input.dataset.type === "llm-content") {
-            inputValues[input.name] = this.#toLLMContentWithTextPart(
-              input.value
-            );
-            stringInput = input.value;
+            inputValues[input.name] = this.#toLLMContentWithTextPart(value);
           } else if (input.dataset.type === "llm-content-array") {
-            inputValues[input.name] = [
-              this.#toLLMContentWithTextPart(input.value),
-            ];
+            inputValues[input.name] = [this.#toLLMContentWithTextPart(value)];
           } else {
-            inputValues[input.name] = input.value;
+            inputValues[input.name] = value;
           }
 
-          input.value = "";
+          value = "";
         } else {
-          inputValues[input.name] = input.value as NodeValue;
+          inputValues[input.name] = value as NodeValue;
         }
 
         if (assetShelf && assetShelf.value) {

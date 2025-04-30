@@ -3,7 +3,15 @@
  */
 
 import { Template } from "./template";
-import { ok, err, toText, isEmpty, mergeContent, toLLMContent } from "./utils";
+import {
+  ok,
+  err,
+  llm,
+  toText,
+  isEmpty,
+  mergeContent,
+  toLLMContent,
+} from "./utils";
 import { callGenWebpage } from "./html-generator";
 import { fanOutContext, flattenContext } from "./lists";
 
@@ -12,11 +20,18 @@ import read from "@read";
 export { invoke as default, describe };
 
 const MANUAL_MODE = "Manual layout";
-const AUTO_MODE = "Webpage with auto-layout";
+const AUTO_MODE_LEGACY = "Webpage with auto-layout";
+const FLASH_MODE = "Webpage with auto-layout by 2.5 Flash";
+const PRO_MODE = "Webpage with auto-layout by 2.5 Pro";
+
+function defaultSystemInstruction(): LLMContent {
+  return llm`You are a skilled web developer specializing in creating intuitive and visually appealing HTML web pages based on user instructions and data. Your task is to generate a valid HTML webpage that will be rendered in an iframe. The generated code must be valid and functional HTML with JavaScript and CSS embedded inline within <script> and <style> tags respectively. Return only the code, and open the HTML codeblock with the literal string '\`\`\`html'. Render content as a clean, well-structured webpage, paying careful attention to user instructions. Use a responsive or mobile-friendly layout whenever possible and minimize unnecessary padding or margins.`.asContent();
+}
 
 type InvokeInputs = {
   text?: LLMContent;
   "p-render-mode": string;
+  "b-system-instruction"?: LLMContent;
 };
 
 type DescribeInputs = {
@@ -111,11 +126,16 @@ function themeColorsPrompt(colors: ThemeColors): string {
 async function invoke({
   text,
   "p-render-mode": renderMode,
+  "b-system-instruction": systemInstruction,
   ...params
 }: InvokeInputs) {
   if (!text) {
     text = toLLMContent("");
   }
+  if (!systemInstruction) {
+    systemInstruction = defaultSystemInstruction();
+  }
+  let systemText = toText(systemInstruction);
   const template = new Template(text);
   const substituting = await template.substitute(params, async () => "");
   if (!ok(substituting)) {
@@ -126,23 +146,29 @@ async function invoke({
     flattenContext([substituting], true, "\n\n"),
     "user"
   );
+  let modelName = "";
+  // TODO(askerryryan): Clean up after backend backwards compatibility window.
   if (renderMode == MANUAL_MODE) {
     renderMode = "Manual";
-  } else if (renderMode == AUTO_MODE) {
+  } else if (renderMode == FLASH_MODE || renderMode == AUTO_MODE_LEGACY) {
+    modelName = "gemini-2.5-flash-preview-04-17";
     renderMode = "HTML";
+  } else if (renderMode == PRO_MODE) {
+    modelName = "gemini-2.5-pro-preview-03-25";
+    renderMode = "Interactive";
   } else if (!renderMode) {
     renderMode = "Manual";
   }
   console.log("Rendering mode: " + renderMode);
   let out = context;
   if (renderMode != "Manual") {
-    let instruction = `Render content as a mobile webpage.
-${themeColorsPrompt(await getThemeColors())}
-`;
-    instruction +=
-      " Use a responsive or mobile-friendly layout whenever possible and minimize unnecessary padding or margins.";
-    console.log("Generating output based on instruction: ", instruction);
-    const webPage = await callGenWebpage(instruction, [context], renderMode);
+    systemText += themeColorsPrompt(await getThemeColors());
+    const webPage = await callGenWebpage(
+      systemText,
+      [context],
+      renderMode,
+      modelName
+    );
     if (!ok(webPage)) {
       console.error("Failed to generated html output");
       return webPage;
@@ -170,11 +196,17 @@ async function describe({ inputs: { text } }: DescribeInputs) {
         },
         "p-render-mode": {
           type: "string",
-          enum: [MANUAL_MODE, AUTO_MODE],
+          enum: [MANUAL_MODE, FLASH_MODE, PRO_MODE],
           title: "Display format",
           behavior: ["config", "hint-preview"],
           default: MANUAL_MODE,
           description: "Choose how to combine and display the outputs",
+        },
+        "b-system-instruction": {
+          type: "object",
+          behavior: ["llm-content", "config", "hint-advanced"],
+          title: "System Instruction",
+          description: "The system instruction used for auto-layout",
         },
         ...template.schemas(),
       },
