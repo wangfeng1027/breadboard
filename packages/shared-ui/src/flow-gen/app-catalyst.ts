@@ -16,6 +16,10 @@ export interface AppCatalystChatRequest {
   messages: AppCatalystContentChunk[];
   appOptions: {
     format: "FORMAT_AGENT_SPACE";
+    agent_config?: {
+      search_engine_id: string;
+      system_instruction: string;
+    }
   };
 }
 
