@@ -275,15 +275,6 @@ export class EditorControls extends LitElement {
               background-color: var(--bb-neutral-50);
             }
 
-            &::before {
-              content: "";
-              width: 20px;
-              height: 20px;
-              margin-right: var(--bb-grid-size-2);
-              background: var(--bb-icon-board) center center / 20px 20px
-                no-repeat;
-            }
-
             &.generative::before {
               background-image: var(--bb-add-icon-generative);
             }
@@ -852,223 +843,208 @@ export class EditorControls extends LitElement {
         return html`Unable to load steps`;
       }
 
-      // TODO: Just do this in a single pass.
-      const generate = this.#createComponentList(this.graphStore, "generate");
-      const input = this.#createComponentList(this.graphStore, "input");
-      const output = this.#createComponentList(this.graphStore, "output");
-
-      const items: HTMLTemplateResult[] = [
-        ...input,
-        ...generate,
-        ...output,
-      ].map((item) => {
-        const classes: Record<string, boolean> = {};
-        if (item.metadata.icon) {
-          classes[item.metadata.icon] = true;
-        }
-
-        return html`<button
-          draggable="true"
-          class=${classMap(classes)}
-          @click=${() => {
-            this.#handleChosenKitItem(item.id);
-          }}
-          @dragstart=${(evt: DragEvent) => {
-            if (!evt.dataTransfer) {
-              return;
-            }
-
-            evt.dataTransfer.setData(DATA_TYPE, item.id);
+      const addStepItem = html`<button
+        id="add-step"
+        @click=${async (evt: PointerEvent) => {
+            await this.#storeReady;
+            this.#componentLibraryConfiguration = {
+              x: evt.clientX - 130,
+              y: 50,
+              freeDrop: false,
+              id: null,
+              subGraphId: null,
+              portId: null,
+            };
+            this.showComponentLibrary = true;
           }}
         >
-          ${item.metadata.title ?? "Untitled"}
-        </button>`;
-      });
+        <span class="g-icon">add</span>
+        ${Strings.from("LABEL_ADD_ITEM")}
+      </button>`;
 
-      items.push(
-        html`<bb-item-select
-            .heading=${Strings.from("LABEL_ADD_ASSETS")}
-            .showDownArrow=${false}
-            @change=${(evt: Event) => {
-              const [select] = evt.composedPath();
-              if (!(select instanceof ItemSelect)) {
-                return;
-              }
-
-              switch (select.value) {
-                case "text": {
-                  this.dispatchEvent(
-                    new CreateNewAssetsEvent([
-                      {
-                        path: globalThis.crypto.randomUUID(),
-                        type: "content",
-                        name: "Text",
-                        data: {
-                          role: "user",
-                          parts: [{ text: "" }],
-                        },
-                      },
-                    ])
-                  );
-                  break;
+      const addAssets = html`<bb-item-select
+          .heading=${Strings.from("LABEL_ADD_ASSETS")}
+          .showDownArrow=${false}
+          @change=${(evt: Event) => {
+                const [select] = evt.composedPath();
+                if (!(select instanceof ItemSelect)) {
+                  return;
                 }
 
-                case "drawing": {
-                  this.dispatchEvent(
-                    new CreateNewAssetsEvent([
-                      {
-                        path: globalThis.crypto.randomUUID(),
-                        type: "content",
-                        subType: "drawable",
-                        name: "Drawing",
-                        data: {
-                          role: "user",
-                          parts: [
-                            { inlineData: { mimeType: "image/png", data: "" } },
-                          ],
-                        },
-                      },
-                    ])
-                  );
-                  break;
-                }
-
-                case "upload": {
-                  const f = document.createElement("input");
-                  f.type = "file";
-                  f.multiple = true;
-                  f.addEventListener("change", () => {
-                    if (!f.files) {
-                      return;
-                    }
-
-                    Promise.all(
-                      [...f.files].map((file) => {
-                        return new Promise<{
-                          name: string;
-                          mimeType: string;
-                          data: string;
-                        }>((resolve, reject) => {
-                          const reader = new FileReader();
-                          reader.onloadend = () => {
-                            const preamble = `data:${file.type};base64,`;
-                            const data = (reader.result as string).substring(
-                              preamble.length
-                            );
-                            resolve({
-                              name: file.name,
-                              mimeType: file.type,
-                              data,
-                            });
-                          };
-                          reader.onerror = () => reject("File read error");
-                          reader.readAsDataURL(file);
-                        });
-                      })
-                    ).then((files) => {
-                      const assets: NewAsset[] = files.map((file) => {
-                        return {
+                switch (select.value) {
+                  case "text": {
+                    this.dispatchEvent(
+                      new CreateNewAssetsEvent([
+                        {
                           path: globalThis.crypto.randomUUID(),
-                          type: "file",
-                          name: file.name,
+                          type: "content",
+                          name: "Text",
+                          data: {
+                            role: "user",
+                            parts: [{ text: "" }],
+                          },
+                        },
+                      ])
+                    );
+                    break;
+                  }
+
+                  case "drawing": {
+                    this.dispatchEvent(
+                      new CreateNewAssetsEvent([
+                        {
+                          path: globalThis.crypto.randomUUID(),
+                          type: "content",
+                          subType: "drawable",
+                          name: "Drawing",
+                          data: {
+                            role: "user",
+                            parts: [
+                              { inlineData: { mimeType: "image/png", data: "" } },
+                            ],
+                          },
+                        },
+                      ])
+                    );
+                    break;
+                  }
+
+                  case "upload": {
+                    const f = document.createElement("input");
+                    f.type = "file";
+                    f.multiple = true;
+                    f.addEventListener("change", () => {
+                      if (!f.files) {
+                        return;
+                      }
+
+                      Promise.all(
+                        [...f.files].map((file) => {
+                          return new Promise<{
+                            name: string;
+                            mimeType: string;
+                            data: string;
+                          }>((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              const preamble = `data:${file.type};base64,`;
+                              const data = (reader.result as string).substring(
+                                preamble.length
+                              );
+                              resolve({
+                                name: file.name,
+                                mimeType: file.type,
+                                data,
+                              });
+                            };
+                            reader.onerror = () => reject("File read error");
+                            reader.readAsDataURL(file);
+                          });
+                        })
+                      ).then((files) => {
+                        const assets: NewAsset[] = files.map((file) => {
+                          return {
+                            path: globalThis.crypto.randomUUID(),
+                            type: "file",
+                            name: file.name,
+                            data: {
+                              role: "user",
+                              parts: [
+                                {
+                                  inlineData: {
+                                    mimeType: file.mimeType,
+                                    data: file.data,
+                                  },
+                                },
+                              ],
+                            },
+                          };
+                        });
+
+                        this.dispatchEvent(new CreateNewAssetsEvent(assets));
+                      });
+                    });
+
+                    f.click();
+                    break;
+                  }
+
+                  case "youtube": {
+                    this.dispatchEvent(
+                      new CreateNewAssetsEvent([
+                        {
+                          path: globalThis.crypto.randomUUID(),
+                          name: "YouTube Video",
+                          type: "content",
+                          subType: "youtube",
                           data: {
                             role: "user",
                             parts: [
                               {
-                                inlineData: {
-                                  mimeType: file.mimeType,
-                                  data: file.data,
-                                },
+                                fileData: { fileUri: "", mimeType: "video/mp4" },
                               },
                             ],
                           },
-                        };
-                      });
-
-                      this.dispatchEvent(new CreateNewAssetsEvent(assets));
-                    });
-                  });
-
-                  f.click();
-                  break;
-                }
-
-                case "youtube": {
-                  this.dispatchEvent(
-                    new CreateNewAssetsEvent([
-                      {
-                        path: globalThis.crypto.randomUUID(),
-                        name: "YouTube Video",
-                        type: "content",
-                        subType: "youtube",
-                        data: {
-                          role: "user",
-                          parts: [
-                            {
-                              fileData: { fileUri: "", mimeType: "video/mp4" },
-                            },
-                          ],
                         },
-                      },
-                    ])
-                  );
-                  break;
-                }
+                      ])
+                    );
+                    break;
+                  }
 
-                case "gdrive": {
-                  this.#attemptGDrivePickerFlow();
-                  break;
-                }
+                  case "gdrive": {
+                    this.#attemptGDrivePickerFlow();
+                    break;
+                  }
 
-                default: {
-                  console.log("Init", select.value);
-                  break;
+                  default: {
+                    console.log("Init", select.value);
+                    break;
+                  }
                 }
-              }
-            }}
-            .freezeValue=${0}
-            .transparent=${true}
-            .values=${[
-              {
-                id: "asset",
-                title: "Asset",
-                icon: "alternate_email",
-                hidden: true,
-              },
-              {
-                id: "text",
-                title: "Text",
-                icon: "edit_note",
-              },
-              {
-                id: "upload",
-                title: "Upload file",
-                icon: "upload",
-              },
-              {
-                id: "gdrive",
-                title: "Google Drive",
-                icon: "drive",
-              },
-              {
-                id: "youtube",
-                title: "YouTube",
-                icon: "video_youtube",
-              },
-              {
-                id: "drawing",
-                title: "Drawing",
-                icon: "draw",
-              },
-            ]}
-          ></bb-item-select>
-          <div>
-            <bb-google-drive-file-id
-              id="add-drive-proxy"
-              ${ref(this.#addDriveInputRef)}
-              .connectionName=${SIGN_IN_CONNECTION_ID}
-              .ownedByMeOnly=${true}
-              @bb-input-change=${(evt: InputChangeEvent) => {
+              }}
+          .freezeValue=${0}
+          .transparent=${true}
+          .values=${[
+                {
+                  id: "asset",
+                  title: "Asset",
+                  icon: "alternate_email",
+                  hidden: true,
+                },
+                {
+                  id: "text",
+                  title: "Text",
+                  icon: "edit_note",
+                },
+                {
+                  id: "upload",
+                  title: "Upload file",
+                  icon: "upload",
+                },
+                {
+                  id: "gdrive",
+                  title: "Google Drive",
+                  icon: "drive",
+                },
+                {
+                  id: "youtube",
+                  title: "YouTube",
+                  icon: "video_youtube",
+                },
+                {
+                  id: "drawing",
+                  title: "Drawing",
+                  icon: "draw",
+                },
+              ]}
+        ></bb-item-select>
+        <div>
+          <bb-google-drive-file-id
+            id="add-drive-proxy"
+            ${ref(this.#addDriveInputRef)}
+            .connectionName=${SIGN_IN_CONNECTION_ID}
+            .ownedByMeOnly=${true}
+            @bb-input-change=${(evt: InputChangeEvent) => {
                 const driveFile = evt.value as {
                   preview: string;
                   id: string;
@@ -1097,9 +1073,13 @@ export class EditorControls extends LitElement {
                   ])
                 );
               }}
-            ></bb-google-drive-file-id>
-          </div> `
-      );
+          ></bb-google-drive-file-id>
+        </div>`;
+
+      const items: HTMLTemplateResult[] = [
+        addStepItem,
+        addAssets
+      ];
 
       return items;
     });
@@ -1113,20 +1093,20 @@ export class EditorControls extends LitElement {
         ? html`<button
             id="show-asset-organizer"
             @pointerover=${(evt: PointerEvent) => {
-              this.dispatchEvent(
-                new ShowTooltipEvent(
-                  Strings.from("COMMAND_ASSET_ORGANIZER"),
-                  evt.clientX,
-                  evt.clientY
-                )
-              );
-            }}
+            this.dispatchEvent(
+              new ShowTooltipEvent(
+                Strings.from("COMMAND_ASSET_ORGANIZER"),
+                evt.clientX,
+                evt.clientY
+              )
+            );
+          }}
             @pointerout=${() => {
-              this.dispatchEvent(new HideTooltipEvent());
-            }}
+            this.dispatchEvent(new HideTooltipEvent());
+          }}
             @click=${() => {
-              this.dispatchEvent(new ShowAssetOrganizerEvent());
-            }}
+            this.dispatchEvent(new ShowAssetOrganizerEvent());
+          }}
           >
             <span class="g-icon">more_vert</span>
           </button>`
@@ -1137,12 +1117,12 @@ export class EditorControls extends LitElement {
       <bb-flowgen-editor-input
         .currentGraph=${this.graph.raw()}
         @pointerdown=${(evt: PointerEvent) => {
-          // <bb-renderer> listens for pointerdown and retains focus so that
-          // after selection updates the user can do things like delete nodes
-          // with the keyboard. The corresponding effect makes it impossible to
-          // interact with this element so we catch the event here first.
-          evt.stopPropagation();
-        }}
+        // <bb-renderer> listens for pointerdown and retains focus so that
+        // after selection updates the user can do things like delete nodes
+        // with the keyboard. The corresponding effect makes it impossible to
+        // interact with this element so we catch the event here first.
+        evt.stopPropagation();
+      }}
       ></bb-flowgen-editor-input>
     </div>`;
 
@@ -1150,25 +1130,25 @@ export class EditorControls extends LitElement {
       <button
         id="zoom-to-fit"
         @pointerover=${(evt: PointerEvent) => {
-          this.dispatchEvent(
-            new ShowTooltipEvent(
-              Strings.from("COMMAND_ZOOM_TO_FIT"),
-              evt.clientX,
-              evt.clientY
-            )
-          );
-        }}
+        this.dispatchEvent(
+          new ShowTooltipEvent(
+            Strings.from("COMMAND_ZOOM_TO_FIT"),
+            evt.clientX,
+            evt.clientY
+          )
+        );
+      }}
         @pointerout=${() => {
-          this.dispatchEvent(new HideTooltipEvent());
-        }}
+        this.dispatchEvent(new HideTooltipEvent());
+      }}
         @click=${() => {
-          let animate = true;
-          if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-            animate = false;
-          }
+        let animate = true;
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+          animate = false;
+        }
 
-          this.dispatchEvent(new ZoomToFitEvent(animate));
-        }}
+        this.dispatchEvent(new ZoomToFitEvent(animate));
+      }}
       >
         Zoom to fit
       </button>
@@ -1176,25 +1156,25 @@ export class EditorControls extends LitElement {
       <button
         id="zoom-in"
         @pointerover=${(evt: PointerEvent) => {
-          this.dispatchEvent(
-            new ShowTooltipEvent(
-              Strings.from("COMMAND_ZOOM_IN"),
-              evt.clientX,
-              evt.clientY
-            )
-          );
-        }}
+        this.dispatchEvent(
+          new ShowTooltipEvent(
+            Strings.from("COMMAND_ZOOM_IN"),
+            evt.clientX,
+            evt.clientY
+          )
+        );
+      }}
         @pointerout=${() => {
-          this.dispatchEvent(new HideTooltipEvent());
-        }}
+        this.dispatchEvent(new HideTooltipEvent());
+      }}
         @click=${() => {
-          let animate = true;
-          if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-            animate = false;
-          }
+        let animate = true;
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+          animate = false;
+        }
 
-          this.dispatchEvent(new ZoomInEvent(animate));
-        }}
+        this.dispatchEvent(new ZoomInEvent(animate));
+      }}
       >
         Zoom in
       </button>
@@ -1202,25 +1182,25 @@ export class EditorControls extends LitElement {
       <button
         id="zoom-out"
         @pointerover=${(evt: PointerEvent) => {
-          this.dispatchEvent(
-            new ShowTooltipEvent(
-              Strings.from("COMMAND_ZOOM_OUT"),
-              evt.clientX,
-              evt.clientY
-            )
-          );
-        }}
+        this.dispatchEvent(
+          new ShowTooltipEvent(
+            Strings.from("COMMAND_ZOOM_OUT"),
+            evt.clientX,
+            evt.clientY
+          )
+        );
+      }}
         @pointerout=${() => {
-          this.dispatchEvent(new HideTooltipEvent());
-        }}
+        this.dispatchEvent(new HideTooltipEvent());
+      }}
         @click=${() => {
-          let animate = true;
-          if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-            animate = false;
-          }
+        let animate = true;
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+          animate = false;
+        }
 
-          this.dispatchEvent(new ZoomOutEvent(animate));
-        }}
+        this.dispatchEvent(new ZoomOutEvent(animate));
+      }}
       >
         Zoom out
       </button>
