@@ -525,6 +525,7 @@ export class Template extends LitElement implements AppTemplate {
   );
 }
 
+#hasFocusableInput = false;
   #renderInput(topGraphResult: TopGraphRunResult) {
     const placeholder = html`<div class="user-input">
         <p>&nbsp;</p>
@@ -731,7 +732,20 @@ export class Template extends LitElement implements AppTemplate {
       status = "finished";
     }
 
+    this.#hasFocusableInput = active;
+
     return html`<div
+      @transitionend=${() => {
+        if (!this.#inputRef.value || !active) {
+          return;
+        }
+
+        const input =
+          this.#inputRef.value.querySelector<HTMLInputElement>(
+            "input,textarea"
+          );
+        input?.focus();
+      }}
       @keydown=${(evt: KeyboardEvent) => {
         const isMac = navigator.platform.indexOf("Mac") === 0;
         const isCtrlCommand = isMac ? evt.metaKey : evt.ctrlKey;

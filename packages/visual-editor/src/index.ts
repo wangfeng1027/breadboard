@@ -144,6 +144,8 @@ export type MainArguments = {
   enableTos?: boolean;
   /** Terms of Service content. */
   tosHtml?: string;
+  /** If true shows more settings. */
+  showExtendedSettings?: boolean;
   kits?: Kit[];
   graphStorePreloader?: (graphStore: MutableGraphStore) => void;
   moduleInvocationFilter?: (context: NodeHandlerContext) => Outcome<void>;
@@ -207,16 +209,10 @@ export class Main extends LitElement {
   accessor showBoardReferenceMarkers = false;
 
   @state()
-  accessor showOpenBoardOverlay = false;
-
-  @state()
-  accessor showCommandPalette = false;
-
-  @state()
-  accessor showModulePalette = false;
-
-  @state()
   accessor showNewWorkspaceItemOverlay = false;
+
+  @state()
+  accessor showExtendedSettings = false;
 
   @state()
   accessor showBoardOverflowMenu = false;
@@ -337,7 +333,6 @@ export class Main extends LitElement {
   #proxy: HarnessProxyConfig[];
   #onShowTooltipBound = this.#onShowTooltip.bind(this);
   #hideTooltipBound = this.#hideTooltip.bind(this);
-  #hidePalettesAndTooltipBound = this.#hidePalettesAndTooltip.bind(this);
   #onKeyDownBound = this.#onKeyDown.bind(this);
   #downloadRunBound = this.#downloadRun.bind(this);
   #confirmUnloadWithUserFirstIfNeededBound =
@@ -385,62 +380,6 @@ export class Main extends LitElement {
   @state()
   accessor graphStoreUpdateId: number = 0;
 
-  #globalCommands: BreadboardUI.Types.Command[] = [
-    {
-      title: Strings.from("COMMAND_OPEN_PROJECT"),
-      name: "open-board",
-      icon: "open",
-      callback: () => {
-        this.showOpenBoardOverlay = true;
-      },
-    },
-    {
-      title: Strings.from("COMMAND_SAVE_PROJECT"),
-      name: "save-board",
-      icon: "save",
-      callback: () => {
-        this.#attemptBoardSave();
-      },
-    },
-    {
-      title: Strings.from("COMMAND_EDIT_PROJECT_INFORMATION"),
-      name: "edit-board-information",
-      icon: "edit",
-      callback: () => {
-        this.#showBoardEditOverlay(
-          this.tab,
-          100,
-          50,
-          this.tab?.subGraphId ?? null,
-          null
-        );
-      },
-    },
-    {
-      title: Strings.from("COMMAND_OPEN_MODULE"),
-      name: "open-module",
-      icon: "open",
-      callback: () => {
-        this.showModulePalette = true;
-      },
-    },
-    {
-      title: Strings.from("COMMAND_CREATE_MODULE"),
-      icon: "add-circle",
-      name: "create-module",
-      callback: () => {
-        const moduleId = BreadboardUI.Utils.getModuleId();
-        if (!moduleId) {
-          return;
-        }
-
-        this.#attemptModuleCreate(moduleId);
-      },
-    },
-  ];
-  #viewCommandNamespace = "default";
-  #viewCommands = new Map<string, BreadboardUI.Types.Command[]>();
-
   #runtime!: Runtime.RuntimeInstance;
 
   static styles = mainStyles;
@@ -457,6 +396,8 @@ export class Main extends LitElement {
       !!config.tosHtml &&
       localStorage.getItem(TOS_KEY) !== TosStatus.ACCEPTED;
     this.#tosHtml = config.tosHtml;
+
+    this.showExtendedSettings = config.showExtendedSettings ?? false;
 
     // This is a big hacky, since we're assigning a value to a constant object,
     // but okay here, because this constant is never re-assigned and is only
@@ -943,7 +884,7 @@ export class Main extends LitElement {
 
     window.addEventListener("bbshowtooltip", this.#onShowTooltipBound);
     window.addEventListener("bbhidetooltip", this.#hideTooltipBound);
-    window.addEventListener("pointerdown", this.#hidePalettesAndTooltipBound);
+    window.addEventListener("pointerdown", this.#hideTooltipBound);
     window.addEventListener("keydown", this.#onKeyDownBound);
     window.addEventListener("bbrundownload", this.#downloadRunBound);
   }
@@ -953,10 +894,7 @@ export class Main extends LitElement {
 
     window.removeEventListener("bbshowtooltip", this.#onShowTooltipBound);
     window.removeEventListener("bbhidetooltip", this.#hideTooltipBound);
-    window.removeEventListener(
-      "pointerdown",
-      this.#hidePalettesAndTooltipBound
-    );
+    window.removeEventListener("pointerdown", this.#hideTooltipBound);
     window.removeEventListener("keydown", this.#onKeyDownBound);
     window.removeEventListener("bbrundownload", this.#downloadRunBound);
   }
@@ -1023,20 +961,6 @@ export class Main extends LitElement {
     this.#tooltipRef.value.y = Math.max(tooltipEvent.y, 90);
     this.#tooltipRef.value.message = tooltipEvent.message;
     this.#tooltipRef.value.visible = true;
-  }
-
-  #hidePalettesAndTooltip() {
-    this.#hideCommandPalette();
-    this.#hideModulePalette();
-    this.#hideTooltip();
-  }
-
-  #hideCommandPalette() {
-    this.showCommandPalette = false;
-  }
-
-  #hideModulePalette() {
-    this.showModulePalette = false;
   }
 
   #hideTooltip() {
@@ -1198,24 +1122,6 @@ export class Main extends LitElement {
 
         this.#handlingKey = false;
       }
-    }
-
-    if (evt.key === "p" && isCtrlCommand) {
-      evt.preventDefault();
-      evt.stopImmediatePropagation();
-
-      if (evt.shiftKey) {
-        this.showCommandPalette = true;
-      } else {
-        this.showModulePalette = true;
-      }
-    }
-
-    if (evt.key === "o" && isCtrlCommand) {
-      evt.preventDefault();
-      evt.stopImmediatePropagation();
-
-      this.showOpenBoardOverlay = true;
     }
 
     if (evt.key === "s" && isCtrlCommand) {
@@ -2366,9 +2272,6 @@ export class Main extends LitElement {
       this.showBoardServerAddOverlay ||
       this.showNodeConfigurator ||
       this.showCommentEditor ||
-      this.showOpenBoardOverlay ||
-      this.showCommandPalette ||
-      this.showModulePalette ||
       this.showNewWorkspaceItemOverlay ||
       this.showBoardOverflowMenu ||
       this.showUserOverflowMenu ||
@@ -2708,103 +2611,6 @@ export class Main extends LitElement {
           ></bb-comment-overlay>`;
         }
 
-        let openDialogOverlay: HTMLTemplateResult | symbol = nothing;
-        if (this.showOpenBoardOverlay) {
-          openDialogOverlay = html`<bb-open-board-overlay
-            .selectedBoardServer=${this.selectedBoardServer}
-            .selectedLocation=${this.selectedLocation}
-            .boardServers=${this.#boardServers}
-            .boardServerNavState=${this.boardServerNavState}
-            @bboverlaydismissed=${() => {
-              this.showOpenBoardOverlay = false;
-              this.#maybeShowWelcomePanel();
-            }}
-            @bbgraphboardserverblankboard=${() => {
-              console.log('here');
-
-              this.showOpenBoardOverlay = false;
-              this.#attemptBoardCreate(blank(), { role: "user" });
-            }}
-            @bbgraphboardserveradd=${() => {
-              this.showBoardServerAddOverlay = true;
-            }}
-            @bbgraphboardserverrefresh=${async (
-              evt: BreadboardUI.Events.GraphBoardServerRefreshEvent
-            ) => {
-              const boardServer = this.#runtime.board.getBoardServerByName(
-                evt.boardServerName
-              );
-              if (!boardServer) {
-                return;
-              }
-
-              const refreshed = await boardServer.refresh(evt.location);
-              if (refreshed) {
-                this.toast(
-                  Strings.from("STATUS_PROJECTS_REFRESHED"),
-                  BreadboardUI.Events.ToastType.INFORMATION
-                );
-              } else {
-                this.toast(
-                  Strings.from("ERROR_UNABLE_TO_REFRESH_PROJECTS"),
-                  BreadboardUI.Events.ToastType.WARNING
-                );
-              }
-
-              this.boardServerNavState = globalThis.crypto.randomUUID();
-            }}
-            @bbgraphboardserverdisconnect=${async (
-              evt: BreadboardUI.Events.GraphBoardServerDisconnectEvent
-            ) => {
-              await this.#runtime.board.disconnect(evt.location);
-              this.boardServerNavState = globalThis.crypto.randomUUID();
-            }}
-            @bbgraphboardserverrenewaccesssrequest=${async (
-              evt: BreadboardUI.Events.GraphBoardServerRenewAccessRequestEvent
-            ) => {
-              const boardServer = this.#runtime.board.getBoardServerByName(
-                evt.boardServerName
-              );
-
-              if (!boardServer) {
-                return;
-              }
-
-              if (boardServer.renewAccess) {
-                await boardServer.renewAccess();
-              }
-
-              this.boardServerNavState = globalThis.crypto.randomUUID();
-            }}
-            @bbgraphboardserverloadrequest=${async (
-              evt: BreadboardUI.Events.GraphBoardServerLoadRequestEvent
-            ) => {
-              this.showOpenBoardOverlay = false;
-              this.#attemptBoardLoad(
-                new BreadboardUI.Events.StartEvent(evt.url)
-              );
-            }}
-            @bbgraphboardserverdeleterequest=${async (
-              evt: BreadboardUI.Events.GraphBoardServerDeleteRequestEvent
-            ) => {
-              await this.#attemptBoardDelete(
-                evt.boardServerName,
-                evt.url,
-                evt.isActive
-              );
-            }}
-            @bbgraphboardserverselectionchange=${(
-              evt: BreadboardUI.Events.GraphBoardServerSelectionChangeEvent
-            ) => {
-              this.#persistBoardServerAndLocation(
-                evt.selectedBoardServer,
-                evt.selectedLocation
-              );
-            }}
-            >Open board</bb-open-board-overlay
-          >`;
-        }
-
         let userOverflowMenu: HTMLTemplateResult | symbol = nothing;
         if (this.showUserOverflowMenu && this.#userOverflowMenuConfiguration) {
           const actions: BreadboardUI.Types.OverflowAction[] = [
@@ -2861,7 +2667,7 @@ export class Main extends LitElement {
           if (this.#runtime.board.canPreview(tabId)) {
             actions.push({
               title: Strings.from("COMMAND_COPY_APP_PREVIEW_URL"),
-              name: "copy-preview-to-clipboard",
+              name: "share",
               icon: "share",
               value: tabId,
             });
@@ -3062,22 +2868,24 @@ export class Main extends LitElement {
                   break;
                 }
 
-                case "copy-preview-to-clipboard": {
-                  if (!tab.graph || !tab.graph.url) {
+                case "share": {
+                  const url = tab?.graph?.url ? new URL(tab.graph.url) : null;
+                  if (!url) {
+                    return;
+                  }
+                  if (url.protocol === "drive:") {
+                    this.#uiRef.value?.openSharePanel();
                     return;
                   }
 
-                  const boardServer = this.#runtime.board.getBoardServerForURL(
-                    new URL(tab.graph.url)
-                  );
+                  const boardServer =
+                    this.#runtime.board.getBoardServerForURL(url);
                   if (!boardServer) {
                     return;
                   }
 
                   try {
-                    const previewUrl = await boardServer.preview(
-                      new URL(tab.graph.url)
-                    );
+                    const previewUrl = await boardServer.preview(url);
 
                     await navigator.clipboard.writeText(previewUrl.href);
                     this.toast(
@@ -3246,28 +3054,6 @@ export class Main extends LitElement {
               ${
                 this.tab
                   ? html` <span class="tab-title">${this.tab.graph.title}</span>
-                      <button
-                        id="tab-edit"
-                        class=${classMap({
-                          "can-save": canSave,
-                        })}
-                        @click=${(evt: PointerEvent) => {
-                          if (!this.tab || !canSave) {
-                            return;
-                          }
-
-                          this.#showBoardEditOverlay(
-                            this.tab,
-                            evt.clientX,
-                            evt.clientY,
-                            this.tab.subGraphId,
-                            null
-                          );
-                        }}
-                      >
-                        Edit
-                      </button>
-
                       <span
                         class=${classMap({
                           "save-status": true,
@@ -3377,29 +3163,33 @@ export class Main extends LitElement {
                       </button>`
                   : nothing
               }
-              <button
-                class=${classMap({ active: this.showSettingsOverlay })}
-                id="toggle-settings"
-                @pointerover=${(evt: PointerEvent) => {
-                  this.dispatchEvent(
-                    new BreadboardUI.Events.ShowTooltipEvent(
-                      Strings.from("COMMAND_EDIT_SETTINGS"),
-                      evt.clientX,
-                      evt.clientY
-                    )
-                  );
-                }}
-                @pointerout=${() => {
-                  this.dispatchEvent(
-                    new BreadboardUI.Events.HideTooltipEvent()
-                  );
-                }}
-                @click=${() => {
-                  this.showSettingsOverlay = true;
-                }}
-              >
-                Settings
-              </button>
+              ${
+                this.showExtendedSettings
+                  ? html`<button
+                      class=${classMap({ active: this.showSettingsOverlay })}
+                      id="toggle-settings"
+                      @pointerover=${(evt: PointerEvent) => {
+                        this.dispatchEvent(
+                          new BreadboardUI.Events.ShowTooltipEvent(
+                            Strings.from("COMMAND_EDIT_SETTINGS"),
+                            evt.clientX,
+                            evt.clientY
+                          )
+                        );
+                      }}
+                      @pointerout=${() => {
+                        this.dispatchEvent(
+                          new BreadboardUI.Events.HideTooltipEvent()
+                        );
+                      }}
+                      @click=${() => {
+                        this.showSettingsOverlay = true;
+                      }}
+                    >
+                      Settings
+                    </button>`
+                  : nothing
+              }
               ${
                 signInAdapter.state === "valid" && signInAdapter.picture
                   ? html`<button
@@ -3609,16 +3399,6 @@ export class Main extends LitElement {
                   evt.visual
                 );
               }}
-              @bbcommandsavailable=${(
-                evt: BreadboardUI.Events.CommandsAvailableEvent
-              ) => {
-                this.#viewCommands.set(evt.namespace, evt.commands);
-              }}
-              @bbcommandssetswitch=${(
-                evt: BreadboardUI.Events.CommandsSetSwitchEvent
-              ) => {
-                this.#viewCommandNamespace = evt.namespace;
-              }}
               @bbinteraction=${() => {
                 this.#clearBoardSave();
               }}
@@ -3665,9 +3445,6 @@ export class Main extends LitElement {
               }}
               @bbstart=${(evt: BreadboardUI.Events.StartEvent) => {
                 this.#attemptBoardLoad(evt);
-              }}
-              @bbgraphboardopenrequest=${() => {
-                this.showOpenBoardOverlay = true;
               }}
               @bboverflowmenuaction=${async (
                 evt: BreadboardUI.Events.OverflowMenuActionEvent
@@ -4321,51 +4098,6 @@ export class Main extends LitElement {
         }
           </div>
       </div>`;
-        const recentItemsKey =
-          (this.graph?.url ?? "untitled-graph").replace(/[\W\s]/gim, "-") +
-          `-${this.#viewCommandNamespace}`;
-        const commands = [
-          ...this.#globalCommands,
-          ...(this.#viewCommands.get(this.#viewCommandNamespace) ?? []),
-        ];
-        const commandPalette = this.showCommandPalette
-          ? html`<bb-command-palette
-              .commands=${commands}
-              .recentItemsKey=${recentItemsKey}
-              .recencyType=${"local"}
-              @pointerdown=${(evt: PointerEvent) => {
-                evt.stopImmediatePropagation();
-              }}
-              @bbcommand=${(evt: BreadboardUI.Events.CommandEvent) => {
-                this.#hideCommandPalette();
-
-                const command = [
-                  ...this.#globalCommands,
-                  ...(this.#viewCommands.get(this.#viewCommandNamespace) ?? []),
-                ].find((command) => command.name === evt.command);
-
-                if (!command) {
-                  console.warn(`Unable to find command "${evt.command}"`);
-                  return;
-                }
-
-                if (!command.callback) {
-                  console.warn(`No callback for command "${evt.command}"`);
-                  return;
-                }
-
-                command.callback.call(
-                  null,
-                  evt.command,
-                  command.secondaryAction
-                );
-              }}
-              @bbpalettedismissed=${() => {
-                this.#hideCommandPalette();
-              }}
-            ></bb-command-palette>`
-          : nothing;
-
         const tabModules = Object.entries(this.tab?.graph.modules ?? {});
 
         // For standard, non-imperative graphs prepend the main board ID
@@ -4375,56 +4107,6 @@ export class Main extends LitElement {
             { code: "" },
           ]);
         }
-
-        const modules: BreadboardUI.Types.Command[] = tabModules
-          .filter(([id]) => {
-            if (this.tab?.moduleId) {
-              return id !== this.tab?.moduleId;
-            }
-
-            return id !== BreadboardUI.Constants.MAIN_BOARD_ID;
-          })
-          .map(([id, module]): BreadboardUI.Types.Command => {
-            if (id === BreadboardUI.Constants.MAIN_BOARD_ID) {
-              return {
-                title: `${Strings.from("COMMAND_OPEN")} ${Strings.from("LABEL_MAIN_PROJECT")}`,
-                icon: "open",
-                name: "open",
-              };
-            }
-            return {
-              title: `${Strings.from("COMMAND_OPEN")} ${module.metadata?.title ?? id}...`,
-              icon: "open",
-              name: "open",
-              secondaryAction: id,
-            };
-          });
-
-        const modulePalette = this.showModulePalette
-          ? html`<bb-command-palette
-              .commands=${modules}
-              .recentItemsKey=${recentItemsKey}
-              .recencyType=${"session"}
-              @pointerdown=${(evt: PointerEvent) => {
-                evt.stopImmediatePropagation();
-              }}
-              @bbcommand=${(evt: BreadboardUI.Events.CommandEvent) => {
-                if (!this.tab) {
-                  return;
-                }
-
-                this.#runtime.board.changeWorkspaceItem(
-                  this.tab.id,
-                  null,
-                  evt.secondaryAction ?? null
-                );
-                this.#hideModulePalette();
-              }}
-              @bbpalettedismissed=${() => {
-                this.#hideModulePalette();
-              }}
-            ></bb-command-palette>`
-          : nothing;
 
         if (
           signInAdapter.state !== "anonymous" &&
@@ -4448,9 +4130,6 @@ export class Main extends LitElement {
           boardServerAddOverlay,
           nodeConfiguratorOverlay,
           commentOverlay,
-          openDialogOverlay,
-          commandPalette,
-          modulePalette,
           boardOverflowMenu,
           userOverflowMenu,
           boardItemsOverflowMenu,
@@ -4486,6 +4165,12 @@ export class Main extends LitElement {
         </div>
       </form>
     </dialog>`;
+  }
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    "bb-main": Main;
   }
 }
 

@@ -72,6 +72,7 @@ import {
   createWorkspaceSelectionChangeId,
 } from "../../utils/workspace.js";
 import { icons } from "../../styles/icons.js";
+import { GoogleDriveSharePanel } from "../elements.js";
 
 const SIDE_ITEM_KEY = "bb-ui-controller-side-nav-item";
 
@@ -225,6 +226,7 @@ export class UI extends LitElement {
     | "editor"
     | "app-view" = "editor";
   #moduleEditorRef: Ref<ModuleEditor> = createRef();
+  #sharePanelRef: Ref<GoogleDriveSharePanel> = createRef();
 
   static styles = [icons, uiControllerStyles];
 
@@ -880,26 +882,7 @@ export class UI extends LitElement {
                 <span class="g-icon">history</span>
               </button>
 
-              <button
-                id="share"
-                @click=${async () => {
-                  const url = await this.#deriveAppURL();
-                  if (!url) {
-                    return;
-                  }
-
-                  await navigator.clipboard.writeText(url.href);
-
-                  this.dispatchEvent(
-                    new ToastEvent(
-                      Strings.from("STATUS_COPIED_TO_CLIPBOARD"),
-                      ToastType.INFORMATION
-                    )
-                  );
-                }}
-              >
-                URL
-              </button>
+              <button id="share" @click=${this.#onClickShareButton}>URL</button>
             </div>
           </div>
           <div id="side-nav-content">${sideNavItem}</div>
@@ -908,11 +891,20 @@ export class UI extends LitElement {
       ${modules.length > 0 ? moduleEditor : nothing}
     `;
 
-    return graph
-      ? html`<section id="create-view">
-          ${assetOrganizer} ${contentContainer}
-        </section>`
-      : html`<section id="content" class="welcome">${graphEditor}</section>`;
+    return [
+      graph
+        ? html`<section id="create-view">
+            ${assetOrganizer} ${contentContainer}
+          </section>`
+        : html`<section id="content" class="welcome">${graphEditor}</section>`,
+      html`
+        <bb-google-drive-share-panel
+          .graph=${this.graph}
+          ${ref(this.#sharePanelRef)}
+        >
+        </bb-google-drive-share-panel>
+      `,
+    ];
   }
 
   updated() {
@@ -946,5 +938,32 @@ export class UI extends LitElement {
         .history=${this.history}
       ></bb-edit-history-panel>
     `;
+  }
+
+  async #onClickShareButton() {
+    const graphUrl = this.graph?.url ? new URL(this.graph.url) : null;
+    if (!graphUrl) {
+      return;
+    }
+    if (graphUrl.protocol === "drive:") {
+      this.openSharePanel();
+      return;
+    }
+
+    const appUrl = await this.#deriveAppURL();
+    if (!appUrl) {
+      return;
+    }
+    await navigator.clipboard.writeText(appUrl.href);
+    this.dispatchEvent(
+      new ToastEvent(
+        Strings.from("STATUS_COPIED_TO_CLIPBOARD"),
+        ToastType.INFORMATION
+      )
+    );
+  }
+
+  openSharePanel() {
+    this.#sharePanelRef?.value?.open();
   }
 }

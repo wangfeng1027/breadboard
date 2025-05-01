@@ -968,7 +968,6 @@ export class ProjectListing extends LitElement {
                 },
                 async (error) => {
                   if (error.message.includes("No folder ID or access token")) {
-
                     if (!this.#availableConnections) {
                       this.#availableConnections = fetchAvailableConnections(
                         this,
@@ -987,8 +986,8 @@ export class ProjectListing extends LitElement {
                       pending: () => html`<p>Loading connections ...</p>`,
                       error: () => html`<p>Error loading connections</p>`,
                       complete: (result: Connection[]) => {
-                        const gdrive = (result as Array<Object>).find(
-                          (connection: any) =>
+                        const gdrive = (result as Array<{ id: string }>).find(
+                          (connection: { id: string }) =>
                             connection.id === gdriveConnectionID
                         );
                         if (gdrive) {
@@ -1000,13 +999,22 @@ export class ProjectListing extends LitElement {
                             </p>
                             <bb-connection-signin
                               .connection=${gdrive}
-                                        @bbtokengranted=${({
-                              token,
-                              expiresIn,
-                            }: HTMLElementEventMap["bbtokengranted"]) => {
-                            this.dispatchEvent(new InputEnterEvent(this.id, {clientId: gdriveConnectionID, secret: token, expiresIn}, false));
-                            
-                            }}
+                              @bbtokengranted=${({
+                                token,
+                                expiresIn,
+                              }: HTMLElementEventMap["bbtokengranted"]) => {
+                                this.dispatchEvent(
+                                  new InputEnterEvent(
+                                    this.id,
+                                    {
+                                      clientId: gdriveConnectionID,
+                                      secret: token,
+                                      expiresIn,
+                                    },
+                                    false
+                                  )
+                                );
+                              }}
                             ></bb-connection-signin>
                           </div>`;
                         }

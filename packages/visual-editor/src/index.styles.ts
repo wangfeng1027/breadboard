@@ -418,6 +418,7 @@ export const styles = css`
     margin-bottom: 2px;
     color: var(--bb-neutral-700);
     white-space: nowrap;
+    margin-right: var(--bb-grid-size-2);
   }
 
   .save-status {
@@ -495,16 +496,6 @@ export const styles = css`
 
   :host([showboardactivityoverlay="true"]) bb-board-activity-overlay {
     display: block;
-  }
-
-  bb-command-palette {
-    position: absolute;
-    top: calc(var(--bb-grid-size-2) + 92px);
-    left: 50%;
-    width: 75%;
-    max-width: 650px;
-    transform: translateX(-50%);
-    z-index: 6;
   }
 
   #user-overflow,

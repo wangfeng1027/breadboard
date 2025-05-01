@@ -21,6 +21,7 @@ export { bootstrap };
 export type BootstrapArguments = {
   connectionServerUrl?: URL;
   requiresSignin?: boolean;
+  defaultBoardService?: string;
   kits?: Kit[];
   graphStorePreloader?: (graphStore: MutableGraphStore) => void;
   moduleInvocationFilter?: (context: NodeHandlerContext) => Outcome<void>;
@@ -76,6 +77,19 @@ function bootstrap(args: BootstrapArguments = {}) {
     document.documentElement.classList.add("dark-theme");
   }
 
+  const esKey = "extended-settings";
+  if (params.has(esKey)) {
+    const keyVal = params.get(esKey);
+    if (keyVal === "1" || keyVal === "true") {
+      globalThis.localStorage.setItem(esKey, "true");
+    } else {
+      globalThis.localStorage.removeItem(esKey);
+    }
+  }
+
+  const showExtendedSettings =
+    globalThis.localStorage.getItem(esKey) === "true";
+
   async function init() {
     await StringsHelper.initFrom(LANGUAGE_PACK as LanguagePack);
 
@@ -88,12 +102,15 @@ function bootstrap(args: BootstrapArguments = {}) {
       settings: SettingsStore.instance(),
       version: pkg.version,
       gitCommitHash: GIT_HASH,
-      boardServerUrl: getUrlFromBoardServiceFlag(BOARD_SERVICE),
+      boardServerUrl: getUrlFromBoardServiceFlag(
+        BOARD_SERVICE || args.defaultBoardService
+      ),
       connectionServerUrl: args?.connectionServerUrl,
       requiresSignin: args?.requiresSignin,
       enableTos: ENABLE_TOS,
       tosHtml: TOS_HTML,
       kits: args?.kits,
+      showExtendedSettings,
       graphStorePreloader: args?.graphStorePreloader,
       moduleInvocationFilter: args?.moduleInvocationFilter,
     };
