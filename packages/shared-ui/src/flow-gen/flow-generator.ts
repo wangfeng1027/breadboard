@@ -19,6 +19,9 @@ import {
   isTextCapabilityPart,
   Template,
 } from "@google-labs/breadboard";
+import {
+  type AgentspaceFlowContent,
+} from "../contexts/agentspace-url-context.js";
 
 export interface OneShotFlowGenRequest {
   intent: string;
@@ -26,6 +29,7 @@ export interface OneShotFlowGenRequest {
     flow?: GraphDescriptor;
   };
   constraint?: FlowGenConstraint;
+  agentspaceFlowContext?: AgentspaceFlowContent;
 }
 
 export interface OneShotFlowGenResponse {
@@ -39,11 +43,20 @@ export type EditStepFlowGenConstraint = {
   stepId: string;
 };
 
+export interface SystemInstructionParams {
+  userEmail?: string;
+  agentName?: string;
+  agentGoal?: string;
+  agentInstructions?: string;
+}
+
+// Input the system instruction from url
 const FIXED_SYSTEM_INSTRUCTIONS = `
 **Use your knowledge, creativity and common sense:**
   `;
 
 export class FlowGenerator {
+
   #appCatalystApiClient: AppCatalystApiClient;
 
   constructor(appCatalystApiClient: AppCatalystApiClient) {
@@ -54,6 +67,7 @@ export class FlowGenerator {
     intent,
     context,
     constraint,
+    agentspaceFlowContext,
   }: OneShotFlowGenRequest): Promise<OneShotFlowGenResponse> {
     if (constraint && !context?.flow) {
       throw new Error(
@@ -65,6 +79,15 @@ export class FlowGenerator {
       await new Promise((resolve) => setTimeout(resolve, 3000));
       throw new Error(intent.slice("/force error ".length));
     }
+    const params: SystemInstructionParams = {
+      // TODO fetch the email from token and set here
+      userEmail: "jimmyxing@google.com",
+      agentName: agentspaceFlowContext?.agentName,
+      agentGoal: agentspaceFlowContext?.agentGoal,
+      agentInstructions: agentspaceFlowContext?.agentInstructions
+    }
+    console.log("Printing system instruction params in oneShot");
+    console.dir(params);
     const request: AppCatalystChatRequest = {
       messages: [
         {
@@ -75,9 +98,9 @@ export class FlowGenerator {
       appOptions: {
         format: "FORMAT_AGENT_SPACE",
         agent_config: {
-          search_engine_id: "",
-          system_instruction: FIXED_SYSTEM_INSTRUCTIONS,
-        }
+          search_engine_resource_name: agentspaceFlowContext?.engineName || '',
+          system_instruction: this.#buildSystemInstruction(params),
+        },
       },
     };
     if (context?.flow) {
@@ -233,6 +256,34 @@ export class FlowGenerator {
         throw new Error(`Unexpected constraint: ${JSON.stringify(constraint)}`);
       }
     }
+  }
+
+  #buildSystemInstruction(params: SystemInstructionParams): string {
+    const now = new Date();
+    const timeString = now.toDateString();
+    const userInfo = `**User information:**
+* The user's email address is ${params.userEmail || ''}.
+* The current time where the user is located is ${timeString}.`;
+    const agentName = `** User provided agent name:** ${params.agentName || ''}`;
+    const agentGoal = `** User provided agent goal:** ${params.agentGoal || ''}`;
+    const agentInstructions = `** User provided agent instructions:** ${params.agentInstructions || ''}`;
+    const commonSense = `**Use your knowledge, creativity and common sense:**
+* Never ask for clarification for optional tool parameters. You can simply ignore them if they are not provided.
+* For non-critical, but required parameters (like title, description, subject, etc.) you should use your creativity to come up with a good value based on the context, when the user did not provide one.
+* You can translate across languages, you can do almost any text processing or manipulation.
+* You can answer in any language, if the user asks for it.`;
+    const commonPatterns = `**Common patterns:**
+1. The user asks for something that is not possible to achieve with the current tools or via your knowledge (eg: "please restart my computer").
+* Expected behavior: Let the user immediately know that you cannot perform this action, and offer to perform an alternative solution.
+2. The user refers to a date (e.g. "next Tuesday", "Friday", "Christmas", "1st October"), but does not provide the full YYYY-MM-DD date.
+* For past events it is always the last occurrence, for future events (eg: time off, create event, new deadline) it is always the next occurrence compared to the current time, that is 2025-02-25 12:37:30 +0100 CET (Week 08, Tuesday).
+* Expected behavior: Do not ask back, but use your best guess.
+3. Generating code snippets, coding and debugging. Since you are an expert in software development, you should answer the user directly when they ask you to provide code, or debug. Do not invoke any tools in this case.
+* Examples: "write a python code that counts the vowels in 'banana'", "what is the problem with this code? code: ...", "explain this code to me: ...", "debug this code: ...", "fix this code: ...", "write a code that calculates <task>", "how to reverse a string in java?".
+* Expected behavior: You answer the user directly with the generated code, or the explanation of the code. You make sure that you highlight the pros and cons of the various approaches.`;
+
+    const systemInstruction = `${userInfo}\n${agentName}\n${agentGoal}\n${agentInstructions}\n${commonSense}\n${commonPatterns}`;
+    return systemInstruction;
   }
 }
 

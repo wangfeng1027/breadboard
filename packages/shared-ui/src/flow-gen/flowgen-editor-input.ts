@@ -20,6 +20,10 @@ import { FlowGenerator } from "./flow-generator.js";
 import { AppCatalystApiClient } from "./app-catalyst.js";
 import { classMap } from "lit/directives/class-map.js";
 import { spinAnimationStyles } from "../styles/spin-animation.js";
+import {
+  agentspaceUrlContext,
+  type AgentspaceFlowContent,
+} from "../contexts/agentspace-url-context.js";
 
 const Strings = StringsHelper.forSection("Editor");
 
@@ -151,6 +155,9 @@ export class FlowgenEditorInput extends LitElement {
   @consume({ context: sideBoardRuntime })
   accessor sideBoardRuntime!: SideBoardRuntime | undefined;
 
+  @consume({ context: agentspaceUrlContext })
+    accessor agentspaceFlowContent!: AgentspaceFlowContent;
+
   @property({ type: Object })
   accessor currentGraph: GraphDescriptor | undefined;
 
@@ -276,6 +283,7 @@ export class FlowgenEditorInput extends LitElement {
     const { flow } = await generator.oneShot({
       intent,
       context: { flow: this.currentGraph },
+      agentspaceFlowContext: this.agentspaceFlowContent
     });
     return flow;
   }

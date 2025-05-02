@@ -382,7 +382,7 @@ export class FlowgenHomepagePanel extends LitElement {
     const generator = new FlowGenerator(
       new AppCatalystApiClient(this.sideBoardRuntime)
     );
-    const { flow } = await generator.oneShot({ intent });
+    const { flow } = await generator.oneShot({ intent: intent, agentspaceFlowContext: this.agentspaceFlowContent });
     this.#updateFlowBasedOnContext(flow);
     return flow;
   }

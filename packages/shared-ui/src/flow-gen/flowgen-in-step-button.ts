@@ -22,6 +22,10 @@ import { multiLineInputStyles } from "../styles/multi-line-input.js";
 import { SideBoardRuntime } from "../sideboards/types.js";
 import { AppCatalystApiClient } from "./app-catalyst.js";
 import { FlowGenConstraint, FlowGenerator } from "./flow-generator.js";
+import {
+  agentspaceUrlContext,
+  type AgentspaceFlowContent,
+} from "../contexts/agentspace-url-context.js";
 
 const Strings = StringsHelper.forSection("Editor");
 
@@ -127,6 +131,9 @@ export class FlowgenInStepButton extends LitElement {
 
   @consume({ context: sideBoardRuntime })
   accessor sideBoardRuntime!: SideBoardRuntime | undefined;
+
+  @consume({ context: agentspaceUrlContext })
+  accessor agentspaceFlowContent!: AgentspaceFlowContent;
 
   @property({ type: Object })
   accessor currentGraph: GraphDescriptor | undefined;
@@ -324,6 +331,7 @@ export class FlowgenInStepButton extends LitElement {
       intent,
       context: { flow: currentFlow },
       constraint: this.constraint,
+      agentspaceFlowContext: this.agentspaceFlowContent,
     });
     return flow;
   }

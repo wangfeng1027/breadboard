@@ -17,7 +17,7 @@ export interface AppCatalystChatRequest {
   appOptions: {
     format: "FORMAT_AGENT_SPACE";
     agent_config?: {
-      search_engine_id: string;
+      search_engine_resource_name: string;
       system_instruction: string;
     }
   };
