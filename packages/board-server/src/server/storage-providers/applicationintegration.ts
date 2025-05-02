@@ -156,12 +156,6 @@ export class ApplicationIntegrationStorageProvider implements BoardServerStore {
     }
 
     console.log(`[Upserting board] Found existing agent flow, updating it.`);
-    // Clear the fields from board.graph.metadata
-    if (board.graph?.metadata) {
-      delete board.graph.metadata.noCodeAgentId;
-      delete board.graph.metadata.noCodeAgentParent;
-    }
-
     // Update the agent flow if it exists
     const existingBoardConfig: StorageBoard = JSON.parse(agentFlow.flowConfig);
     const updatedBoardConfig: StorageBoard = {
@@ -184,11 +178,20 @@ export class ApplicationIntegrationStorageProvider implements BoardServerStore {
     var updateMask = "flowConfig";
     const description = board.description ?? "";
     const displayName = board.displayName ?? "";
+    const noCodeAgentId = board.graph?.metadata?.noCodeAgentId ?? "";
     if (description !== "" && board.description !== undefined) {
       updateMask += ",description";
     }
     if (displayName !== "" && board.displayName !== undefined) {
       updateMask += ",display_name";
+    }
+    if (noCodeAgentId !== "" && board.graph?.metadata?.noCodeAgentId !== undefined) {
+      updateMask += ",no_code_agent";
+    }
+    // Clear the fields from board.graph.metadata
+    if (board.graph?.metadata) {
+      delete board.graph.metadata.noCodeAgentId;
+      delete board.graph.metadata.noCodeAgentParent;
     }
     // Convert the board object to a JSON string
     const boardJsonString = JSON.stringify(board);
@@ -204,7 +207,7 @@ export class ApplicationIntegrationStorageProvider implements BoardServerStore {
         "Content-Type": "application/json",
         "x-goog-user-project": `${PROJECT_NUMBER}`,
       },
-      body: '{"name":"' + agentFlowResourceName + '","description":"' + description + '", "displayName":"' + displayName + '", "flowConfig":' + escapedBoardJsonString + '}',
+      body: '{"name":"' + agentFlowResourceName + '","description":"' + description + '", "displayName":"' + displayName + '", "flowConfig":' + escapedBoardJsonString + ', ""noCodeAgent":"' + noCodeAgentId + '"}',
     });
 
     if (!response.ok) {
