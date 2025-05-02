@@ -629,7 +629,7 @@ export class LLMOutput extends LitElement {
             isFunctionResponseCapabilityPart(part)
           ) {
             this.#outputLoaded();
-            value = html` <bb-json-tree .json=${part}></bb-json-tree>`;
+            value = html``;
           } else if (isStoredData(part)) {
             let url = part.storedData.handle;
             if (!url) {

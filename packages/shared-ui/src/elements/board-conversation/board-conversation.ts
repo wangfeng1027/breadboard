@@ -481,10 +481,11 @@ export class BoardConversation extends LitElement {
 
   async #renderNodeOutputs(
     event: InspectableRunNodeEvent,
-    description: string | null,
+
     stored = false,
     consumed = false
   ) {
+
 
     const { node, inputs, outputs } = event;
 
@@ -610,17 +611,10 @@ export class BoardConversation extends LitElement {
         consumed: consumed || isOutput,
       })}
     >
-      <details
-        ?open=${stored || isOutput || portList.length === 1}
-        class="node-output"
-      >
-        <summary
-          class=${classMap({ "with-description": description !== null })}
-        >
-          ${description ? html`<h2>${description}</h2>` : nothing}
-        </summary>
+
+ 
         ${contents}
-      </details>
+
     </div>`;
   }
 
@@ -670,7 +664,6 @@ export class BoardConversation extends LitElement {
                           : null;
                       const outputs = this.#renderNodeOutputs(
                         event,
-                        description,
                         false,
                         event !== newestEvent
                       );
