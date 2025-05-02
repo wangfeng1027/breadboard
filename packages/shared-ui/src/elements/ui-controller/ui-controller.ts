@@ -916,7 +916,7 @@ export class UI extends LitElement {
                   this.dispatchEvent(
                     new ShowTooltipEvent(
                       Strings.from("LABEL_SHARE"),
-                      evt.clientX - 60,
+                      evt.clientX,
                       evt.clientY
                     )
                   );

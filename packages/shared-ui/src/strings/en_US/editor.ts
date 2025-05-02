@@ -78,6 +78,9 @@ export default {
   LABEL_ADD_ASSETS: {
     str: "Add @Assets",
   },
+  LABEL_EDIT: {
+    str: "Edit",
+  },
 
   // Queries.
 

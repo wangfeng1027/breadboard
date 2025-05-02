@@ -232,17 +232,31 @@ export class EditorControls extends LitElement {
           background: var(--bb-neutral-0);
           padding: 0;
 
+          #edit {
+            border-radius: var(--bb-grid-size-2) var(--bb-grid-size-16)
+              var(--bb-grid-size-16) var(--bb-grid-size-2);
+
+            &::before {
+              content: "";
+              height: calc(100% + 4px);
+              position: absolute;
+              top: -2px;
+              left: -3px;
+              translate: -0.5px 0;
+              border-left: 1px solid var(--bb-neutral-100);
+            }
+          }
+
           & bb-item-select {
             position: relative;
             margin: 0 2px;
+            padding: 0 var(--bb-grid-size) 0 0;
+            border-radius: var(--bb-grid-size-2);
 
             --menu-width: 200px;
             --selected-item-column-gap: var(--bb-grid-size);
             --selected-item-height: var(--bb-grid-size-9);
             --selected-item-hover-color: var(--bb-neutral-50);
-            --selected-item-border-radius: var(--bb-grid-size-2)
-              var(--bb-grid-size-16) var(--bb-grid-size-16)
-              var(--bb-grid-size-2);
             --selected-item-font: 400 var(--bb-label-large) /
               var(--bb-label-line-height-large) var(--bb-font-family);
             --selected-item-title-padding: 0 var(--bb-grid-size-2) 0 0;
@@ -268,6 +282,11 @@ export class EditorControls extends LitElement {
                 var(--bb-grid-size-2) var(--bb-grid-size-16);
               margin-left: 2px;
               padding-left: var(--bb-grid-size-4);
+            }
+
+            &:last-of-type {
+              border-radius: var(--bb-grid-size-16);
+              margin-right: 2px;
             }
 
             &:hover,
@@ -1076,10 +1095,28 @@ export class EditorControls extends LitElement {
           ></bb-google-drive-file-id>
         </div>`;
 
+      const edit = html`<button
+        id="edit"
+        @pointerover=${(evt: PointerEvent) => {
+          this.dispatchEvent(
+            new ShowTooltipEvent(
+              Strings.from("LABEL_EDIT"),
+              evt.clientX,
+              evt.clientY
+            )
+          );
+        }}
+        @pointerout=${() => {
+          this.dispatchEvent(new HideTooltipEvent());
+        }}
+      >
+        <span class="g-icon">edit</span>
+      </button>`;
+
       const items: HTMLTemplateResult[] = [
         addStepItem,
-        addAssets
-      ];
+        addAssets,
+        edit];
 
       return items;
     });
