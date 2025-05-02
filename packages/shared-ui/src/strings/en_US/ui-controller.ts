@@ -75,6 +75,12 @@ export default {
   LABEL_TOGGLE_EXPAND: {
     str: "Toggle expand",
   },
+  LABEL_VIEW_REVISION_HISTORY: {
+    str: "View revision history",
+  },
+  LABEL_RESET: {
+    str: "Reset",
+  },
 
   // Queries.
 

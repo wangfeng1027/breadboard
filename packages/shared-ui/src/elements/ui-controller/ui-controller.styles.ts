@@ -642,15 +642,16 @@ export const styles = css`
           }
         }
       }
+    }
 
-      & #share {
+    & #side-nav-controls-right {
+      & button {
         width: 20px;
         height: 20px;
-        background: var(--bb-icon-share) center center / 20px 20px no-repeat;
         font-size: 0;
         margin: 0 0 var(--bb-grid-size-3) 0;
         border: none;
-        opacity: 0.5;
+        opacity: 0.7;
         padding: 0;
         margin-left: var(--bb-grid-size-2);
         transition: opacity 0.2s cubic-bezier(0, 0, 0.3, 1);
@@ -665,23 +666,13 @@ export const styles = css`
         }
       }
 
-      & #back {
-          font-size: 0;
-          height: 20px;
-          width: 20px;
-          background: var(--bb-icon-refresh) center center / 20px 20px no-repeat;
-          margin: 0 0 var(--bb-grid-size-2) 0;
-          border: none;
-          opacity: 0.5;
+      & #share {
+        background: var(--bb-icon-share) center center / 20px 20px no-repeat;
+      }
 
-          &:not([disabled]) {
-            cursor: pointer;
-
-            &:hover,
-            &:focus {
-              opacity: 1;
-            }
-          }
+      & #edit-history {
+        height: 32px;
+        margin-bottom: unset; // because it has the blue underline when selected
       }
     }
 

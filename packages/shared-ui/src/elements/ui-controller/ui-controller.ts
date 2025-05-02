@@ -48,7 +48,9 @@ import { ModuleEditor } from "../module-editor/module-editor.js";
 import { createRef, ref, Ref } from "lit/directives/ref.js";
 import {
   CommandsSetSwitchEvent,
+  HideTooltipEvent,
   NodeConfigurationUpdateRequestEvent,
+  ShowTooltipEvent,
   StopEvent,
   ThemeEditRequestEvent,
   ToastEvent,
@@ -862,27 +864,69 @@ export class UI extends LitElement {
                 : nothing}
             </div>
             <div id="side-nav-controls-right">
-              ${this.sideNavItem === "app-view" && this.topGraphResult && this.topGraphResult.log.length > 0
+              ${this.topGraphResult && this.topGraphResult.log.length > 0
                 ? html`<button
                     id="back"
+                    aria-label="Reset"
                     @click=${() => {
                       this.dispatchEvent(new StopEvent(true));
                     }}
+                    @pointerover=${(evt: PointerEvent) => {
+                      this.dispatchEvent(
+                        new ShowTooltipEvent(
+                          Strings.from("LABEL_RESET"),
+                          evt.clientX,
+                          evt.clientY
+                        )
+                      );
+                    }}
+                    @pointerout=${() => {
+                      this.dispatchEvent(new HideTooltipEvent());
+                    }}
                   >
-                    Restart
-                </button>`
+                    <span class="g-icon">refresh</span>
+                  </button>`
                 : nothing}
               <button
                 ?disabled=${this.sideNavItem === "edit-history"}
                 @click=${() => {
                   this.sideNavItem = "edit-history";
                 }}
+                @pointerover=${(evt: PointerEvent) => {
+                  this.dispatchEvent(
+                    new ShowTooltipEvent(
+                      Strings.from("LABEL_VIEW_REVISION_HISTORY"),
+                      evt.clientX,
+                      evt.clientY
+                    )
+                  );
+                }}
+                @pointerout=${() => {
+                  this.dispatchEvent(new HideTooltipEvent());
+                }}
                 aria-label="Edit History"
+                id="edit-history"
               >
                 <span class="g-icon">history</span>
               </button>
-
-              <button id="share" @click=${this.#onClickShareButton}>URL</button>
+              <button
+                id="share"
+                @click=${this.#onClickShareButton}
+                @pointerover=${(evt: PointerEvent) => {
+                  this.dispatchEvent(
+                    new ShowTooltipEvent(
+                      Strings.from("LABEL_SHARE"),
+                      evt.clientX - 60,
+                      evt.clientY
+                    )
+                  );
+                }}
+                @pointerout=${() => {
+                  this.dispatchEvent(new HideTooltipEvent());
+                }}
+              >
+                URL
+              </button>
             </div>
           </div>
           <div id="side-nav-content">${sideNavItem}</div>
