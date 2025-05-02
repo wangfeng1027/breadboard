@@ -200,6 +200,7 @@ export class ApplicationIntegrationStorageProvider implements BoardServerStore {
 
     const url = `${ENDPOINT}/v1/${agentFlowResourceName}?update_mask=${updateMask}`;
     const accessToken = await this.getOAuthAccessToken();
+    const generatedBody =  '{"name":"' + agentFlowResourceName + '","description":"' + description + '", "displayName":"' + displayName + '", "flowConfig":' + escapedBoardJsonString + ', "noCodeAgent":"' + noCodeAgentId + '"}';
     const response = await fetch(url, {
       method: "PATCH",
       headers: {
@@ -207,7 +208,7 @@ export class ApplicationIntegrationStorageProvider implements BoardServerStore {
         "Content-Type": "application/json",
         "x-goog-user-project": `${PROJECT_NUMBER}`,
       },
-      body: '{"name":"' + agentFlowResourceName + '","description":"' + description + '", "displayName":"' + displayName + '", "flowConfig":' + escapedBoardJsonString + ', ""noCodeAgent":"' + noCodeAgentId + '"}',
+      body: generatedBody,
     });
 
     if (!response.ok) {

@@ -1460,6 +1460,18 @@ export class Main extends LitElement {
       graph,
     );
     this.#isSaving = false;
+    
+    if (this.agentspaceUrl.parentOrigin) {
+      const messageData = {
+        type: 'FLOW_GENERATED',
+        payload: graph,
+      };
+      try {
+        window.parent.postMessage(messageData, this.agentspaceUrl.parentOrigin);
+      } catch(e) {
+        console.error('DescribeFlowPanel: Error posting message to parent:', e)
+      }
+    }
 
     if (!result || !url) {
       if (ackUser && id) {

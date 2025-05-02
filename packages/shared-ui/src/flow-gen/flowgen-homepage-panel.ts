@@ -398,17 +398,6 @@ export class FlowgenHomepagePanel extends LitElement {
     this.dispatchEvent(
       new GraphBoardServerGeneratedBoardEvent(graph, { role: "assistant" })
     );
-    if (this.agentspaceFlowContent.parentOrigin) {
-      const messageData = {
-        type: 'FLOW_GENERATED',
-        payload: graph,
-      };
-      try {
-        window.parent.postMessage(messageData, this.agentspaceFlowContent.parentOrigin);
-      } catch(e) {
-        console.error('DescribeFlowPanel: Error posting message to parent:', e)
-      }
-    }
   }
 
   #onGenerateError(error: unknown) {
